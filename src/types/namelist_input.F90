@@ -1,0 +1,814 @@
+MODULE namelist_input
+
+  ! putting the namelist into a structure instead
+  !
+  ! salomon.eliasson@smhi.se
+
+  USE cosp_kinds, ONLY: wp
+  USE handy,      ONLY: check_file
+  USE my_maths,   ONLY: daysinmonth
+  USE optics_m,   ONLY: sim_aux
+
+  IMPLICIT NONE
+
+  PUBLIC :: &
+       get_namelist_rttov,    &
+       get_namelist_cloud_cci, &
+       get_namelist_clara,    &
+       get_namelist_model,    &
+       deallocate_namelist,   &
+       name_list
+
+  PRIVATE :: common_namelist, &
+       namelist_ctp_tau,      &
+       namelist_daynight,     &
+       namelist_microphys
+
+  TYPE paths
+     ! ------- Paths -------
+     !
+     !  datadir    : where the auxilliary data is
+     !  dailyFiles : Whether or not the input files are daily or monthly
+     !  model_input_regexp:
+     !             Is the full path to the model input files. Use
+     !             the following keywords in the regular expression
+     !             #SIM='sim',#MODEL=options%model(A),#Y4=year(i4),#M2=month(i2),
+     !             #D2=day(i2),#Y2=year(i2),#M1=month(i1),#D1=day(i1),#UTC=utc(i2),
+     !             #NODE=string,#VERSION=string,#STRING=string
+     !             (e.g. "/some/where/#Y4/#M2/#D2/file_#Y4#M2#D2.nc", where  
+     !               Y4=year (i0.4),M2=month (i0.2), and D2=day (i0.2)
+     !  sim_output_regexp : 
+     !             Same as story as model_input_regexp, but for the output NETCDF files
+
+     CHARACTER(len=1000) :: sim_output_regexp,data_dir,model_input_regexp
+     LOGICAL             :: dailyFiles
+  END TYPE paths
+  TYPE epoch
+     ! ------ EPOCH -------
+     !  year	: year to run
+     !  month	: month to run
+     !  day1	: first day to loop over
+     !  day2  	: last day to loop over
+
+     INTEGER :: year, month
+     INTEGER :: day1, day2
+  END TYPE epoch
+  TYPE L2b
+
+     ! ----- L2b ----------
+     !
+
+     ! This information is used to create a level2b-like output. The
+     ! satellite (given in rttov structure, R%id), node, and
+     ! year,month (provided to options%epoch) information is used to
+     ! create the equator crossing times. The out put data will then
+     ! have the same local time everywhere, the same as the satellites
+     ! overpass times.
+     !
+     ! doL2bsampling : .true. = do the above
+     !
+     ! interpolate   : .true. = don't just sample the equatorial overpass time,
+     !                          linearly interpolate it so that the 
+     !                          local time matches this time everywhere
+     ! node          : 'asc','dec', 'all',''
+     !
+     ! local_time    : If you provide a local time, the model will
+     !                 be sampled at this time
+     !
+     LOGICAL           :: doL2bSampling
+     LOGICAL           :: interpolate
+     CHARACTER(len=20) :: satellite
+     CHARACTER(len=3)  :: node
+     REAL(wp)          :: local_time
+  END TYPE L2b
+  TYPE cloudMicrophysics
+     ! ------ cloudMicrophys ----------
+     !
+     ! 'cf_method'         = technique to determine cloud fraction. 
+     !                     0 = global constant (tau_min)
+     !                     1 = global gridded tau constants
+     !                     2 = probability of detection based on optical depth bins
+     !                     3 = 2 .AND. global gridded false alarm rate, 
+     !                         which reclassifies some cloud free bins to cloudy.
+     !
+     ! 'tau_min'            = Cloud optical depth threshold for CLARA-A1. This
+     !                        should be listed in the namelist
+     ! 'tau_equivRadCldTop' = Cloud optical depth where the radiantly equivalent cloud
+     !                        top height is located. The MODIS satellite
+     !                        simulator assumes tau_equivRadCldTop = 1(pincus et. al., 2012)
+
+     INTEGER  :: cf_method
+     REAL(wp) :: tau_min,tau_equivRadCldTop
+
+  END TYPE cloudMicrophysics
+  TYPE illumination
+     ! ------ daynight ----------                                                       
+     !                                                                                  
+     !   daylim   = maximum solar zenith angle for daylight
+     !   nightlim = minimum solar zenith angle for nighttime
+     real(wp):: daylim,nightlim
+  END TYPE illumination
+  TYPE ctp_tau
+     ! -------- ctp_tau_hist_dim ----------
+     !
+     ! CTP-TAU diagrams. Dimensions and bin edges must be consistent
+     ! (dim=length(edges)-1)
+     !
+     ! n_tbins	: number of optical thickness bins for P_tau
+     ! 		 histograms
+     ! n_pbins 	: number of pressure bins for P_tau histograms
+     !
+     ! --------- ctp_tau_hist_vec ---------
+     !
+     !  Bin edges values for cloud optical depth and cloud top pressure
+     !  for CPT-tau histograms
+     !
+     ! tbin_edges      : vector for tau bin edges
+     ! pbins_edges     : vector for CTP bin edges [Pa]
+     ! hist_phase      : 0 (ice), 1 (liquid)
+     !
+     !
+     REAL(wp), ALLOCATABLE :: tbin_edges(:),tbin_centre(:)
+     REAL(wp), ALLOCATABLE :: pbin_edges(:),pbin_centre(:)
+     REAL(WP) :: hist_phase(2)
+     INTEGER  :: n_tbins, n_pbins
+  END TYPE ctp_tau
+  TYPE namelist_sim
+     LOGICAL :: doClara
+     LOGICAL :: doCloud_cci
+     LOGICAL :: doISCCP
+     LOGICAL :: doRTTOV
+     LOGICAL :: doModel
+
+     !    ! number of frequencies
+     INTEGER :: nchannels, sensor
+     INTEGER, ALLOCATABLE :: channels(:)
+
+     ! 0 = CDK model (ISCCP Tb), 1 = rttov Tb's
+     INTEGER :: Tb
+  END TYPE namelist_sim
+  TYPE variablesContainer
+     !
+     ! These are all the available variables that can be output from
+     ! the simulator
+     !
+     ! Cloud cover
+     LOGICAL :: cfc,cfc_day,cfc_low,cfc_mid,cfc_high,icf,lcf
+     ! Cloud top products
+     LOGICAL :: cth,ctp,ctp_log,ctt,cth_corrected,ctp_corrected,ctt_corrected      
+     ! Cloud effective radius
+     LOGICAL :: ireff,lreff,ireff3D,lreff3D,ref_ice,ref_liq,cer_ice,cer_liq
+     ! Cloud visible optical thickness
+     LOGICAL :: albedo,itau,ltau,tau,cot_ice,cot_liq, cla_vis006, cot
+     ! Cloud water path
+     LOGICAL :: iwp,lwp
+     ! histograms
+     LOGICAL :: hist2d_cot_ctp
+     ! ancillary data
+     LOGICAL :: solzen,land_sea,time_of_day
+     ! direct model variables
+     LOGICAL :: CI,SKT,TCC,TCWV       
+     ! brightness temperature
+     LOGICAL :: Tb,Tb_clr,tau_subcolumn,Tb_subcolumn
+     
+  END TYPE variablesContainer
+  TYPE name_list
+     TYPE(paths)             :: paths
+     TYPE(epoch)             :: epoch
+     TYPE(L2b)               :: L2b   
+     TYPE(cloudMicrophysics) :: cloudMicrophys
+     TYPE(illumination)      :: daynight
+     TYPE(ctp_tau)           :: ctp_tau
+     TYPE(namelist_sim)      :: sim
+     TYPE(variablesContainer):: vars
+     TYPE(sim_aux)           :: sim_aux
+
+     ! ---- debug -------- 
+     !
+     ! dbg		: debug flag, 0 = no debug; -1 = use earlier
+     ! 		: version of sim_clara; >0 = debug 
+     !		: (integer specifies npts to print)
+     ! 
+     ! 'ncols'              = number of subcolumns used in the model grid 
+     ! 'namelist_file'
+     ! 'model'              = string name of the model
+     ! 'overwrite_existing' = If .TRUE. it will overwite existing simulated files
+     ! 'subsampler'         = 0 (scops (COSP default)), 1 (DWD SIMFERA), 2 McICA
+
+     INTEGER                 :: dbg
+     CHARACTER(len=1000)     :: model
+     CHARACTER(len=1000)     :: namelist_file
+     INTEGER                 :: ncols
+     LOGICAL                 :: overwrite_existing
+     INTEGER                 :: subsampler
+  END TYPE name_list
+
+CONTAINS
+
+  ! --------------------
+  ! SETUP SIMULATORS
+  ! --------------------
+
+  !
+  ! COMMON namelist
+  !
+  SUBROUTINE common_namelist(x,file)
+
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+    INTEGER                        :: year, month, day1, day2
+    CHARACTER(len=1000)            :: data_dir,model_name,rttov_dir
+    CHARACTER(len=1000)            :: model_input_regexp,sim_output_regexp
+    INTEGER                        :: dbg,subsampler
+    LOGICAL                        :: exists,dailyFiles,overwrite_existing,use_satellite
+
+    NAMELIST/epoch/year,month,day1,day2
+    NAMELIST/paths/model_name,sim_output_regexp,data_dir&
+         &,model_input_regexp,dailyFiles,rttov_dir
+    NAMELIST/other/dbg,overwrite_existing,subsampler,use_satellite
+
+    day1=-999
+    day2=-999
+    exists = .TRUE.
+    INQUIRE(FILE=TRIM(file), EXIST=exists)
+    IF (.NOT. exists) THEN
+       WRITE (*,*) "namelist file is missing. It should be the first input &
+            &argument to the executable (e.g. >> ./simulator.x namelist)"
+       STOP "stopped in namelist_input.F90"
+    END IF
+
+    OPEN(10,file=file,status='old')
+
+    READ(10,epoch)
+    IF (day1.LT.1) day1=1
+    IF (day2.LT.1) day2=DAYSINMONTH(year,month)
+    REWIND(10)
+    READ(10,paths)
+    REWIND(10)
+    READ(10,other)
+    REWIND(10)
+    CLOSE(10) 
+
+    X%epoch%year               = year
+    X%epoch%month              = month
+    X%epoch%day1               = day1
+    X%epoch%day2               = day2
+    X%namelist_file            = file
+    X%model                    = model_name
+    X%overwrite_existing       = overwrite_existing
+    X%paths%model_input_regexp = model_input_regexp
+    X%paths%sim_output_regexp  = sim_output_regexp
+    X%paths%data_dir           = data_dir
+    X%paths%dailyFiles         = dailyFiles
+    X%dbg                      = dbg
+    X%subsampler               = subsampler
+
+    IF (use_satellite) THEN
+       CALL namelist_satellite(x,file)
+    ELSE
+        X%L2b%doL2bSampling    = .FALSE.
+        X%L2b%interpolate      = .FALSE.
+        X%L2b%node             = ''
+        X%L2b%satellite        = 'none'
+    END IF
+
+  END SUBROUTINE common_namelist
+
+  !
+  ! CLARA
+  !
+  SUBROUTINE get_namelist_clara(x,file)
+
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+
+    INTEGER                        :: brightness_temperature_method
+
+    NAMELIST/simulator/brightness_temperature_method
+
+    OPEN(10,file=file,status='old')
+    READ(10,simulator)  
+    CLOSE(10)
+    
+    CALL common_namelist   (x,file)
+    CALL namelist_ctp_tau  (x,file)
+    CALL namelist_daynight (x,file)
+    CALL namelist_microphys(x,file)
+    CALL variables_clara   (x,file)
+
+    X%sim%doClara     = .TRUE.
+    X%sim%doCloud_cci = .FALSE.
+    X%sim%doISCCP     = .FALSE.
+    X%sim%doModel     = .FALSE.
+    X%sim%doRTTOV     = .FALSE.
+
+    X%sim%Tb               = brightness_temperature_method
+
+  END SUBROUTINE get_namelist_clara
+
+  !
+  ! Cloud_cci
+  !
+  SUBROUTINE get_namelist_cloud_cci(x,file)
+
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+
+    CALL common_namelist    (x,file)
+    CALL namelist_ctp_tau   (x,file)
+    CALL namelist_daynight  (x,file)
+    CALL namelist_microphys (x,file)
+    CALL variables_cloud_cci(x,file)
+
+    X%sim%doClara     = .FALSE.
+    X%sim%doCloud_cci = .TRUE.
+    X%sim%doISCCP     = .FALSE.
+    X%sim%doModel     = .FALSE.
+    X%sim%doRTTOV     = .FALSE.
+
+  END SUBROUTINE get_namelist_cloud_cci
+
+  !
+  ! ISCCP
+  !
+  SUBROUTINE get_namelist_isccp(x,file)
+
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+
+    CALL common_namelist    (x,file)
+    CALL namelist_daynight  (x,file)
+    x%cloudMicrophys%tau_min = 0.3_wp ! hardcoded in COSP
+    x%cloudMicrophys%cf_method = 0 ! implied by tau_min actually
+
+    CALL variables_isccp    (x,file)
+
+    X%sim%doClara     = .FALSE.
+    X%sim%doCloud_cci = .FALSE.
+    X%sim%doISCCP     = .TRUE.
+    X%sim%doModel     = .FALSE.
+    X%sim%doRTTOV     = .FALSE.
+
+  END SUBROUTINE get_namelist_isccp
+
+  !
+  ! Model
+  !
+  SUBROUTINE get_namelist_model(x,file)
+
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+
+    CALL common_namelist  (x,file)
+    CALL namelist_ctp_tau (x,file)
+    CALL namelist_daynight(x,file) ! keep this for now
+
+    ! hardcode these for get_cloudType
+    x%cloudMicrophys%cf_method = 0
+    x%cloudMicrophys%tau_min = 0.00001_wp
+    x%cloudMicrophys%tau_equivRadCldTop = 1
+
+    CALL variables_model  (x,file)
+
+    x%sim%doClara     = .FALSE.
+    x%sim%doCloud_cci = .FALSE.
+    X%sim%doISCCP     = .FALSE.
+    x%sim%doModel     = .TRUE.
+    x%sim%doRTTOV     = .FALSE.
+
+  END SUBROUTINE get_namelist_model
+
+  !
+  ! RTTOV
+  !
+  SUBROUTINE get_namelist_rttov(x,file)
+
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+
+    CALL common_namelist(x,file)
+    CALL variables_rttov(x,file)
+
+    X%sim%doClara     = .FALSE.
+    X%sim%doCloud_cci = .FALSE.
+    X%sim%doISCCP     = .FALSE.
+    X%sim%doModel     = .FALSE.
+    X%sim%doRTTOV     = .TRUE.
+
+  END SUBROUTINE get_namelist_rttov
+
+  ! --------------------
+  ! VARIABLES
+  ! --------------------
+  SUBROUTINE variables_clara(x,file)
+
+    IMPLICIT NONE
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+    LOGICAL :: land_sea,solzen,time_of_day,cfc,cfc_day,cfc_low,&
+         cfc_mid,cfc_high,cot_ice,cot_liq,cth,ctp,ctp_log,ctt,iwp,&
+         lwp,hist2d_cot_ctp,ref_ice,ref_liq
+    
+    NAMELIST/variables2run/land_sea,solzen,time_of_day,cfc,cfc_day,cfc_low,&
+         &cfc_mid,cfc_high,cot_ice,cot_liq,cth,ctp,ctp_log,ctt,iwp,&
+         &lwp,hist2d_cot_ctp,ref_ice,ref_liq
+    
+    CALL initialise_variable_flag(land_sea,solzen,time_of_day,&
+         cfc,cfc_day,cfc_low,cfc_mid,cfc_high,cot_ice,&
+         cot_liq,cth,ctp,ctp_log,ctt,iwp,lwp,hist2d_cot_ctp,ref_ice,ref_liq)
+    
+    OPEN(10,file=file,status='old')
+    READ(10,variables2run)  
+    CLOSE(10)
+
+    x%vars%land_sea       = land_sea 
+    x%vars%solzen         = solzen   
+    x%vars%time_of_day    = time_of_day
+    x%vars%cfc            = cfc      
+    x%vars%cfc_day        = cfc_day  
+    x%vars%cfc_low        = cfc_low  
+    x%vars%cfc_mid        = cfc_mid  
+    x%vars%cfc_high       = cfc_high 
+    x%vars%cot_ice        = cot_ice  
+    x%vars%cot_liq        = cot_liq  
+    x%vars%cth            = cth      
+    x%vars%ctp            = ctp      
+    x%vars%ctp_log        = ctp_log  
+    x%vars%ctt            = ctt      
+    x%vars%iwp            = iwp      
+    x%vars%lwp            = lwp      
+    x%vars%hist2d_cot_ctp = hist2d_cot_ctp
+    x%vars%ref_ice        = ref_ice  
+    x%vars%ref_liq        = ref_liq  
+    
+  END SUBROUTINE variables_clara
+
+  SUBROUTINE variables_cloud_cci(x,file)
+
+    IMPLICIT NONE
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+    LOGICAL :: land_sea,solzen,time_of_day,cer_ice,cer_liq,&
+         cfc,cfc_low,cfc_mid,cfc_high,cla_vis006,cot,cot_ice,cot_liq,&
+         cth,ctp,ctp_log,ctt,cth_corrected,ctp_corrected,ctt_corrected,&
+         hist2d_cot_ctp,iwp,lwp
+    
+    NAMELIST/variables2run/land_sea,solzen,time_of_day,cer_ice,cer_liq,&
+         cfc,cfc_low,cfc_mid,cfc_high,cla_vis006,cot,cot_ice,cot_liq,&
+         cth,ctp,ctp_log,ctt,cth_corrected,ctp_corrected,ctt_corrected,&
+         hist2d_cot_ctp,iwp,lwp
+    
+    CALL initialise_variable_flag(land_sea,solzen,time_of_day,cer_ice,cer_liq,&
+         cfc,cfc_low,cfc_mid,cfc_high,cla_vis006,cot,cot_ice,cot_liq,&
+         cth,ctp,ctp_log,ctt,cth_corrected,ctp_corrected,ctt_corrected,&
+         hist2d_cot_ctp,iwp,lwp)
+    
+    
+    OPEN(10,file=file,status='old')
+    READ(10,variables2run)  
+    CLOSE(10)
+
+    x%vars%land_sea       = land_sea      
+    x%vars%solzen         = solzen     
+    x%vars%time_of_day    = time_of_day   
+    x%vars%cer_ice        = cer_ice       
+    x%vars%cer_liq        = cer_liq       
+    x%vars%cfc            = cfc           
+    x%vars%cfc_low        = cfc_low       
+    x%vars%cfc_mid        = cfc_mid       
+    x%vars%cfc_high       = cfc_high      
+    x%vars%cla_vis006     = cla_vis006    
+    x%vars%cot            = cot           
+    x%vars%cot_ice        = cot_ice       
+    x%vars%cot_liq        = cot_liq       
+    x%vars%cth            = cth           
+    x%vars%ctp            = ctp           
+    x%vars%ctp_log        = ctp_log       
+    x%vars%ctt            = ctt           
+    x%vars%cth_corrected  = cth_corrected 
+    x%vars%ctp_corrected  = ctp_corrected 
+    x%vars%ctt_corrected  = ctt_corrected 
+    x%vars%hist2d_cot_ctp = hist2d_cot_ctp
+    x%vars%iwp            = iwp           
+    x%vars%lwp            = lwp           
+    
+  END SUBROUTINE variables_cloud_cci
+
+  SUBROUTINE variables_isccp(x,file)
+
+    IMPLICIT NONE
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+    LOGICAL :: albedo,cfc,ctp,tau,Tb,Tb_clr
+    
+    NAMELIST/variables2run/albedo,cfc,ctp,tau,Tb,Tb_clr
+    
+    CALL initialise_variable_flag(albedo,cfc,ctp,tau,Tb,Tb_clr)
+        
+    OPEN(10,file=file,status='old')
+    READ(10,variables2run)  
+    CLOSE(10)
+
+    x%vars%albedo = albedo           
+    x%vars%cfc    = cfc           
+    x%vars%ctp    = ctp           
+    x%vars%tau    = tau           
+    x%vars%Tb     = Tb           
+    x%vars%Tb_clr = Tb_clr
+    
+  END SUBROUTINE variables_isccp
+
+  SUBROUTINE variables_model(x,file)
+
+    IMPLICIT NONE
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+    LOGICAL :: land_sea,solzen,time_of_day,&
+         cfc,cfc_day,cfc_low,cfc_mid,cfc_high,&
+         cth,ctp,ctp_log,ctt,CI,icf,ireff,ireff3D,&
+         itau,iwp,lcf,lreff,lreff3D,ltau,lwp,&
+         hist2d_cot_ctp,SKT,tau,TCC,TCWV
+    
+    NAMELIST/variables2run/land_sea,solzen,time_of_day,&
+         cfc,cfc_day,cfc_low,cfc_mid,cfc_high,&
+         cth,ctp,ctp_log,ctt,CI,icf,ireff,ireff3D,&
+         itau,iwp,lcf,lreff,lreff3D,ltau,lwp,&
+         hist2d_cot_ctp,SKT,tau,TCC,TCWV
+    
+    CALL initialise_variable_flag(land_sea,solzen,time_of_day,&
+         cfc,cfc_day,cfc_low,cfc_mid,cfc_high,&
+         cth,ctp,ctp_log,ctt,CI,icf,ireff,ireff3D,&
+         itau,iwp,lcf,lreff,lreff3D,ltau,lwp,&
+	hist2d_cot_ctp,SKT,tau,TCC,TCWV)
+
+    OPEN(10,file=file,status='old')
+    READ(10,variables2run)  
+    CLOSE(10)
+
+    x%vars%land_sea       = land_sea      
+    x%vars%solzen         = solzen        
+    x%vars%time_of_day    = time_of_day
+    x%vars%cfc            = cfc            
+    x%vars%cfc_day        = cfc_day
+    x%vars%cfc_low        = cfc_low         
+    x%vars%cfc_mid        = cfc_mid        
+    x%vars%cfc_high       = cfc_high       
+    x%vars%cth            = cth           
+    x%vars%ctp            = ctp           
+    x%vars%ctp_log        = ctp_log       
+    x%vars%ctt            = ctt           
+    x%vars%CI             = CI            
+    x%vars%hist2d_cot_ctp = hist2d_cot_ctp
+    x%vars%icf            = icf           
+    x%vars%ireff          = ireff         
+    x%vars%ireff3D        = ireff3D       
+    x%vars%itau           = itau          
+    x%vars%iwp            = iwp           
+    x%vars%lcf            = lcf           
+    x%vars%lreff          = lreff         
+    x%vars%lreff3D        = lreff3D       
+    x%vars%ltau           = ltau          
+    x%vars%lwp            = lwp           
+    x%vars%SKT            = SKT           
+    x%vars%tau            = tau           
+    x%vars%TCC            = TCC           
+    x%vars%TCWV           = TCWV           
+
+  END SUBROUTINE variables_model
+
+  SUBROUTINE variables_rttov(x,file)
+
+    IMPLICIT NONE
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+    LOGICAL :: land_sea,solzen,time_of_day,&
+         tau,Tb,Tb_clr,tau_subcolumn,Tb_subcolumn
+  
+    NAMELIST/variables2run/land_sea,solzen,time_of_day,&
+         tau,Tb,Tb_clr,tau_subcolumn,Tb_subcolumn
+
+    CALL initialise_variable_flag(land_sea,solzen,time_of_day,&
+         tau,Tb,Tb_clr,tau_subcolumn,Tb_subcolumn)
+
+    OPEN(10,file=file,status='old')
+    READ(10,variables2run)  
+    CLOSE(10)
+
+    x%vars%land_sea     = land_sea      
+    x%vars%solzen       = solzen        
+    x%vars%time_of_day  = time_of_day
+    x%vars%tau          = tau                 
+    x%vars%Tb           = Tb           
+    x%vars%Tb_clr       = Tb_clr       
+    x%vars%tau_subcolumn= tau_subcolumn
+    x%vars%Tb_subcolumn = Tb_subcolumn  
+
+  END SUBROUTINE variables_rttov
+
+  SUBROUTINE deallocate_namelist(options)
+
+    IMPLICIT NONE
+
+    TYPE(name_list),INTENT(inout):: options
+
+    DEALLOCATE(options%ctp_tau%tbin_edges,&
+               options%ctp_tau%pbin_edges)
+
+  END SUBROUTINE deallocate_namelist
+
+  SUBROUTINE initialise_variable_flag(var1,var2,var3,var4,var5,var6,&
+       var7,var8,var9,var10,var11,var12,var13,var14,var15,var16,var17,&
+       var18,var19,var20,var21,var22,var23,var24,var25,var26,var27,&
+       var28,var29,var30,var31,var32)
+
+
+    LOGICAL,INTENT(inout),OPTIONAL :: var1,var2,var3,var4,var5,var6,&
+       var7,var8,var9,var10,var11,var12,var13,var14,var15,var16,var17,&
+       var18,var19,var20,var21,var22,var23,var24,var25,var26,var27,&
+       var28,var29,var30,var31,var32
+
+    IF (PRESENT(var1 )) var1 =.FALSE.
+    IF (PRESENT(var2 )) var2 =.FALSE.
+    IF (PRESENT(var3 )) var3 =.FALSE.
+    IF (PRESENT(var4 )) var4 =.FALSE.
+    IF (PRESENT(var5 )) var5 =.FALSE.
+    IF (PRESENT(var6 )) var6 =.FALSE.
+    IF (PRESENT(var7 )) var7 =.FALSE.
+    IF (PRESENT(var8 )) var8 =.FALSE.
+    IF (PRESENT(var9 )) var9 =.FALSE.
+    IF (PRESENT(var10)) var10=.FALSE.
+    IF (PRESENT(var11)) var11=.FALSE.
+    IF (PRESENT(var12)) var12=.FALSE.
+    IF (PRESENT(var13)) var13=.FALSE.
+    IF (PRESENT(var14)) var14=.FALSE.
+    IF (PRESENT(var15)) var15=.FALSE.
+    IF (PRESENT(var16)) var16=.FALSE.
+    IF (PRESENT(var17)) var17=.FALSE.
+    IF (PRESENT(var18)) var18=.FALSE.
+    IF (PRESENT(var19)) var19=.FALSE.
+    IF (PRESENT(var20)) var20=.FALSE.
+    IF (PRESENT(var21)) var21=.FALSE.
+    IF (PRESENT(var22)) var22=.FALSE.
+    IF (PRESENT(var23)) var23=.FALSE.
+    IF (PRESENT(var24)) var24=.FALSE.
+    IF (PRESENT(var25)) var25=.FALSE.
+    IF (PRESENT(var26)) var26=.FALSE.
+    IF (PRESENT(var27)) var27=.FALSE.
+    IF (PRESENT(var28)) var28=.FALSE.
+    IF (PRESENT(var29)) var29=.FALSE.
+    IF (PRESENT(var30)) var30=.FALSE.
+    IF (PRESENT(var31)) var31=.FALSE.
+    IF (PRESENT(var32)) var32=.FALSE.
+  END SUBROUTINE initialise_variable_flag
+
+  !
+  ! Satellite
+  !
+  SUBROUTINE namelist_satellite(x,file)
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+    LOGICAL                        :: doL2bSampling, interpolate
+    INTEGER                        :: id_platform, id_satellite
+    CHARACTER(len=3)               :: node
+    REAL(wp)                       :: local_time                           
+    NAMELIST/satellite/id_platform,id_satellite,node,doL2bSampling,interpolate,local_time
+
+    id_satellite=-999
+
+    OPEN(10,file=file,status='old')
+    READ(10,satellite)
+    CLOSE(10) 
+
+    X%L2b%node                 = node
+    X%L2b%doL2bSampling        = doL2bSampling
+    X%L2b%interpolate          = interpolate
+    X%L2b%local_time           = local_time
+    ! Get the right satellite
+    IF (id_satellite .GT. 0) THEN ! it may not be provided
+       IF (id_platform .EQ. 1) THEN
+          IF (id_satellite < 10) WRITE(X%L2b%satellite,'("noaa",I1)') id_satellite
+          IF (id_satellite >= 10) WRITE(X%L2b%satellite,'("noaa",I2)') id_satellite
+       ELSEIF (id_platform .EQ. 10) THEN
+          IF (id_satellite .EQ. 1) X%L2b%satellite = 'metopa'
+          IF (id_satellite .EQ. 2) X%L2b%satellite = 'metopb'
+       ELSEIF (id_platform .EQ. 11) THEN
+          WRITE(X%L2b%satellite,'("envisat-",I1)') id_satellite
+       ELSEIF (id_platform .EQ. 8) THEN
+          WRITE(X%L2b%satellite,'("ers-",I1)') id_satellite
+       ELSE
+          WRITE (*,*) "Not yet setup for platform:", id_platform
+       ENDIF
+    END IF
+  END SUBROUTINE namelist_satellite
+
+  ! 
+  ! CTP_Tau
+  !
+  SUBROUTINE namelist_ctp_tau(x,file)
+
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+    REAL(wp), ALLOCATABLE          :: tbin_edges(:)
+    REAL(wp), ALLOCATABLE          :: pbin_edges(:)
+    INTEGER                        :: n_tbins, n_pbins
+    INTEGER, PARAMETER             :: tmpbinsize = 100    ! for over-allocating ctp-tau bins
+    REAL(wp), PARAMETER            :: tmpbinval = -3200.0 ! some unphysical value
+    INTEGER :: i
+
+    NAMELIST/ctp_tau_hist_vec/tbin_edges,pbin_edges
+
+    OPEN(10,file=file,status='old')
+
+    ! I don't know the size yet, so define a much larger array, I put
+    ! initialise with unphysical values, and read the smaller array
+    ! from the namelist into this array. I'll use a while loop to find
+    ! the length of the bin vectors
+
+    ALLOCATE ( tbin_edges(tmpbinsize) ,&
+               pbin_edges(tmpbinsize) )
+    tbin_edges(1:tmpbinsize) = tmpbinval
+    pbin_edges(1:tmpbinsize) = tmpbinval
+    READ(10,ctp_tau_hist_vec)
+    CLOSE(10) 
+
+    ! ----------------
+    ! CTP-TAU histograms
+    ! Get the length of the arrays
+    n_pbins = 1;
+    DO WHILE (pbin_edges(n_pbins) .NE. tmpbinval)
+       n_pbins = n_pbins+1
+    END DO
+    n_pbins  = n_pbins-2 ! -2 since length(pbin_edges)=n_pbins+1 
+    n_tbins = 1;
+    DO WHILE (tbin_edges(n_tbins) .NE. tmpbinval)
+       n_tbins = n_tbins+1
+    END DO
+    n_tbins  = n_tbins-2
+
+    ALLOCATE (X%ctp_tau%tbin_edges (n_tbins+1) ,&
+              X%ctp_tau%pbin_edges (n_pbins+1) )
+    ALLOCATE (X%ctp_tau%tbin_centre(n_tbins  ) ,&
+              X%ctp_tau%pbin_centre(n_pbins  ) )
+
+
+    X%ctp_tau%tbin_edges(1:n_tbins+1) = tbin_edges(1:n_tbins+1)
+    ! In the namelist the unit is [hPa], but we need it as [Pa] in the
+    ! simulator
+    X%ctp_tau%pbin_edges(1:n_pbins+1) = pbin_edges(1:n_pbins+1)*100
+
+    DO i = 1, n_tbins
+       X%ctp_tau%tbin_centre(i) = (tbin_edges(i)+tbin_edges(i+1))/2
+    END DO
+    DO i = 1, n_pbins
+       X%ctp_tau%pbin_centre(i) = (pbin_edges(i)+pbin_edges(i+1))*50
+    END DO
+
+    X%ctp_tau%n_tbins      = n_tbins
+    X%ctp_tau%n_pbins      = n_pbins
+    X%ctp_tau%hist_phase   = (/0._wp,1._wp/)
+
+    DEALLOCATE(tbin_edges,pbin_edges)
+
+  END SUBROUTINE namelist_ctp_tau
+
+  !
+  ! Day night
+  ! 
+  SUBROUTINE namelist_daynight(x,file)
+
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+    REAL(wp)                       :: daylim,nightlim
+
+    NAMELIST/daynight/daylim,nightlim
+
+    OPEN(10,file=file,status='old')
+    READ(10,daynight)  
+    CLOSE(10) 
+
+    X%daynight%daylim      = daylim
+    X%daynight%nightlim    = nightlim
+  END SUBROUTINE namelist_daynight
+
+  !
+  ! Microphysical
+  !
+  SUBROUTINE namelist_microphys(x,file)
+
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+    REAL(wp)                       :: tau_min,tau_equivRadCldTop
+    INTEGER                        :: cf_method
+
+    NAMELIST/cloudMicrophys/cf_method,tau_min,tau_equivRadCldTop
+
+    OPEN(10,file=file,status='old')
+    READ(10,cloudMicrophys)  
+    CLOSE(10)
+
+    X%cloudMicrophys%cf_method          = cf_method
+    X%cloudMicrophys%tau_min            = tau_min
+    X%cloudMicrophys%tau_equivRadCldTop = tau_equivRadCldTop
+  END SUBROUTINE namelist_microphys
+  
+END MODULE namelist_input

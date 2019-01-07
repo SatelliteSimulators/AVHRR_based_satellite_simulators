@@ -1,0 +1,11 @@
+The spectral Cloud albedo look up tables are from:
+http://proj.badc.rl.ac.uk/orac/browser#sad_dir
+
+RD Luts have the following format
+Channel
+18 (optical depth dimension)
+10 solar zenith dimension
+23 radius dimension
+Rd(18,10,23)
+
+NOTE: LUT's for NOAA6 and NOAA19 are missing from the server
