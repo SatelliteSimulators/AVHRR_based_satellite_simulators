@@ -35,6 +35,8 @@ options can be used.
 INSTRUCTIONS:
 
 *) The code can be compiled using ifort or gfortan using 'make cloud_cci'
+
 *) Run the simulator by '.cloud_cci.x namelist_cloud_cci
+
 *) See simulator paper for details on input and output
 
