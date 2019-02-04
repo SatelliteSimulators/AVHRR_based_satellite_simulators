@@ -250,6 +250,7 @@ CONTAINS
           END IF
        END IF
     END DO
+
     IF (.NOT.time) THEN
        IF (lorlon .AND. lorlat) THEN
 
@@ -296,17 +297,17 @@ CONTAINS
           IF (options%model .EQ. 'ec_earth') THEN
 
              ALLOCATE( lsm(nlon,nlat) ) 
-             WRITE(file, '(A,"land_sea_ec_earth.nc")') TRIM(options%paths%data_dir)
+             WRITE(file, '(A,"land_sea_mask/land_sea_ec_earth.nc")') TRIM(options%paths%data_dir)
              ncid2=0
              dimid=1
-             CALL CHECK( nf90_open     (file,nf90_nowrite,ncid2 ) )
 
+             CALL CHECK( nf90_open     (TRIM(file),nf90_nowrite,ncid2 ) )
              ! check if this land sea mask fits 
              str='lon'
-             CALL CHECK(nf90_inquire_dimension( ncid,dimid,str,len ) )
+             CALL CHECK(nf90_inquire_dimension( ncid2,dimid,str,len ) )
              IF  (len.NE.nlon) THEN 
                 
-                PRINT *, "land sea mask dimensions do not match model.&
+                PRINT '(100A)', "land sea mask dimensions do not match model.&
                      Will make a land sea mask that matches the model"
                 aux%lsm = GET_LAND_SEA_MASK(aux,options)
              ELSE
@@ -741,7 +742,7 @@ CONTAINS
     ! READ the land sea mask 
     !
 
-    WRITE(file, '(A,"land_sea_mask_1min.nc")') TRIM(options%paths%data_dir)
+    WRITE(file, '(A,"land_sea_mask/land_sea_mask_1min.nc")') TRIM(options%paths%data_dir)
 
     IF (.NOT. CHECK_FILE (file)) THEN
        STOP "where's the file?"

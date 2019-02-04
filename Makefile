@@ -30,7 +30,6 @@ p_simulator_variables = src/types/simulator_variables.F90
 #common
 p_data_check = src/shared/data_check.F90
 p_auxiliary_functions = src/shared/auxiliary_functions.F90
-p_cloud_cci_type = src/cloudcci/cloud_cci_type.F90
 
 # Tools
 p_handy = src/tools/handy.F90
@@ -40,18 +39,21 @@ p_my_netcdfTools = src/tools/my_netcdfTools.F90
 # Modules
 p_simulator_netcdf_module = src/shared/simulator_netcdf_module.F90
 p_make_level2B = src/shared/make_level2B.F90
-p_subcolumns =	src/shared/subcolumns.F90
+p_subcolumns = src/shared/subcolumns.F90
 p_calc_from_model = src/shared/calc_from_model.F90
 p_simple_simulator = src/shared/simple_simulator.F90
 p_simulate_cloud_microphys = src/shared/simulate_cloud_microphys.F90
 
-
-# Cloud_cci specific
-p_Bcucof = src/cloudcci/from_CC4CL/Bcucof.F90
-p_Bcuint = src/cloudcci/from_CC4CL/Bcuint.F90
-p_from_CC4CL = src/cloudcci/from_CC4CL/from_CC4CL.F90
-p_cloud_cci_functions = src/cloudcci/cloud_cci_functions.F90
-p_cloud_cci = src/cloudcci/cloud_cci.F90
+##############################
+# CLOUD_CCI
+##############################
+p_Bcucof = src/cloud_cci/from_CC4CL/Bcucof.F90
+p_Bcuint = src/cloud_cci/from_CC4CL/Bcuint.F90
+p_from_CC4CL = src/cloud_cci/from_CC4CL/from_CC4CL.F90
+p_cloud_cci_functions = src/cloud_cci/cloud_cci_functions.F90
+p_cloud_cci_netcdf = src/cloud_cci/cloud_cci_netcdf.F90
+p_cloud_cci_type = src/cloud_cci/cloud_cci_type.F90
+p_cloud_cci = src/cloud_cci/cloud_cci.F90
 
 CLOUD_CCI=\
 	obj/cosp_kinds.o\
@@ -77,14 +79,14 @@ CLOUD_CCI=\
 	obj/cosp_stats.o\
 	obj/simulate_cloud_microphys.o\
 	obj/auxiliary_functions.o\
-	obj/simulator_netcdf_module.o\
-	obj/Bcucof.o\
-	obj/Bcuint.o\
-	obj/cloud_cci_functions.o\
 	obj/mo_rng.o\
 	obj/cosp_errorHandling.o\
 	obj/scops.o\
 	obj/subcolumns.o\
+	obj/Bcucof.o\
+	obj/Bcuint.o\
+	obj/cloud_cci_functions.o\
+	obj/cloud_cci_netcdf.o\
 	obj/cloud_cci.o\
 
 
@@ -158,7 +160,7 @@ obj/simple_simulator.o: $(p_simple_simulator)
 obj/simulate_cloud_microphys.o: $(p_simulate_cloud_microphys)
 	$(COMPILE) -c -o obj/simulate_cloud_microphys.o $(p_simulate_cloud_microphys)
 
-# CLOUDCCI
+# CLOUD_CCI
 obj/cloud_cci_type.o: $(p_cloud_cci_type) 
 	$(COMPILE) -c -o obj/cloud_cci_type.o $(p_cloud_cci_type)
 obj/Bcucof.o: $(p_Bcucof)
@@ -175,7 +177,7 @@ obj/cloud_cci.o: $(p_cloud_cci)
 clean:
 	rm -rf mod/* obj/* *.x *~ *\#
 #
-all: clara rttov cloud_cci model
+all: cloud_cci
 
 install:
 	cp -f *.x ${INSTALL_DIR}/

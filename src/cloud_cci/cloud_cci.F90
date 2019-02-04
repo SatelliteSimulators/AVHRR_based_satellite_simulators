@@ -21,10 +21,13 @@ PROGRAM CLOUD_CCI_SIMULATOR
        DAY_ADD,                       &
        DAY_AVERAGE,                   &
        READ_ALBEDO_LUT
+  USE CLOUD_CCI_NETCDF,          ONLY:&
+       MAKE_NETCDF
   USE CLOUD_CCI_M,               ONLY:&
        ALLOCATE_CLOUD_CCI,            &
        CLOUD_CCI_TYPE,                &
        DEALLOCATE_CLOUD_CCI,          &
+       GET_NAMELIST_CLOUD_CCI,        &
        INITIALISE_CLOUD_CCI
   USE COSP_KINDS,                ONLY:&
        WP
@@ -53,13 +56,10 @@ PROGRAM CLOUD_CCI_SIMULATOR
        INITIALISE_MODEL_MATRIX,       &
        MODEL_TYPE,                    &                 
        READ_MODEL
-  USE MOD_COSP_STATS,            ONLY:&
-       HIST2D
   USE MY_MATHS,                  ONLY:&
        DAYOFYEAR
   USE NAMELIST_INPUT,            ONLY:&
        DEALLOCATE_NAMELIST,           &
-       GET_NAMELIST_CLOUD_CCI,        &
        NAME_LIST                      
   USE OPTICS_M,                  ONLY:&
        CLOUD_ALBEDO,                  &
@@ -78,8 +78,6 @@ PROGRAM CLOUD_CCI_SIMULATOR
        DEALLOCATE_SIM_INPUT,          &
        INITIALISE_SIM_INPUT,          &
        SUBSET
-  USE SIMULATOR_NETCDF_MODULE,   ONLY:&
-       MAKE_NETCDF
   USE SIMULATOR_VARIABLES,       ONLY:&
        ALLOCATE_SIMULATOR,            &
        DEALLOCATE_SIMULATOR,          &
@@ -102,7 +100,7 @@ PROGRAM CLOUD_CCI_SIMULATOR
   TYPE(cloud_cci_type)                 :: cloud_cci
   TYPE(cloud_albedo)                   :: alb
   CHARACTER(9),PARAMETER               :: simulator='cloud_cci'
-  CHARACTER(3),PARAMETER               :: versionNumber = "1.5"
+  CHARACTER(3),PARAMETER               :: versionNumber = "1.0"
   REAL(wp)                             :: utc,day_of_year
   REAL(wp)                             :: elapsed
   INTEGER                              :: startTime,endTime,clock_rate
@@ -162,11 +160,13 @@ PROGRAM CLOUD_CCI_SIMULATOR
   IF (.NOT.need2Average) THEN
      CALL ASSIGN_SATELLITE_SPECS(sat,options)
   END IF
+
   ! ---------------
   ! --- Auxiliary
   model%aux%netcdf_file = BUILD_FILENAME(&
        options%paths%model_input_regexp,year,month,day1,model=options%model)
   CALL GET_MODEL_AUX(model%aux,options)
+
   ! get time here if using monthly files
   IF (.NOT.options%paths%dailyFiles) THEN
      CALL GET_MODEL_AUX(model%aux,options,.TRUE.)
@@ -418,7 +418,7 @@ PROGRAM CLOUD_CCI_SIMULATOR
      PRINT '(A,A)',"Writing simulator results to NetCDF file:&
           & ",TRIM(sim%netcdf_file)
 
-     CALL MAKE_NETCDF(model,sim,options,iday,S=sub,sat=sat,cloud_cci=cloud_cci)
+     CALL MAKE_NETCDF(model,sim,options,iday,S=sub,sat=sat,IN=cloud_cci)
 
   END DO ! loop over days
 

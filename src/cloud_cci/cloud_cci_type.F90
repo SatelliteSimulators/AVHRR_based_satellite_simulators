@@ -8,6 +8,11 @@ MODULE CLOUD_CCI_M
   USE COSP_KINDS,          ONLY: WP
   USE MODEL_INPUT,         ONLY: MODEL_AUX
   USE NAMELIST_INPUT,      ONLY: &
+       COMMON_NAMELIST,          & 
+       INITIALISE_VARIABLE_FLAG, &
+       NAMELIST_CTP_TAU,         &
+       NAMELIST_DAYNIGHT,        &
+       NAMELIST_MICROPHYS,       &
        NAME_LIST,                &
        VARIABLESCONTAINER
   USE OPTICS_M,            ONLY: &
@@ -21,11 +26,13 @@ MODULE CLOUD_CCI_M
   PUBLIC :: ALLOCATE_CLOUD_CCI, &
        CLOUD_CCI_TYPE,          &
        DEALLOCATE_CLOUD_CCI,    &
+       GET_NAMELIST_CLOUD_CCI,  &
        INITIALISE_CLOUD_CCI,    &
        INITIALISE_CLOUD_CCI_SIM
 
   PRIVATE :: ALLOCATE_CLOUD_CCI_SIM, &
-       DEALLOCATE_CLOUD_CCI_SIM
+       DEALLOCATE_CLOUD_CCI_SIM,     &
+       VARIABLES_CLOUD_CCI
 
   TYPE cloud_cci_fields
 
@@ -243,7 +250,76 @@ CONTAINS
                  IN%lwp           ,&
                  IN%tau           )
 
-    !IF (ALLOCATED(IN%hist2d_cot_ctp)) DEALLOCATE(IN%hist2d_cot_ctp)
   END SUBROUTINE DEALLOCATE_CLOUD_CCI_SIM
 
+  SUBROUTINE get_namelist_cloud_cci(x,file)
+
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+
+    CALL common_namelist    (x,file)
+    CALL namelist_ctp_tau   (x,file)
+    CALL namelist_daynight  (x,file)
+    CALL namelist_microphys (x,file)
+    CALL variables_cloud_cci(x,file)
+
+    X%sim%doClara     = .FALSE.
+    X%sim%doCloud_cci = .TRUE.
+    X%sim%doISCCP     = .FALSE.
+    X%sim%doModel     = .FALSE.
+    X%sim%doRTTOV     = .FALSE.
+
+  END SUBROUTINE get_namelist_cloud_cci
+
+  SUBROUTINE variables_cloud_cci(x,file)
+
+    IMPLICIT NONE
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+    LOGICAL :: land_sea,solzen,time_of_day,cer_ice,cer_liq,&
+         cfc,cfc_low,cfc_mid,cfc_high,cla_vis006,cot,cot_ice,cot_liq,&
+         cth,ctp,ctp_log,ctt,cth_corrected,ctp_corrected,ctt_corrected,&
+         hist2d_cot_ctp,iwp,lwp
+    
+    NAMELIST/variables2run/land_sea,solzen,time_of_day,cer_ice,cer_liq,&
+         cfc,cfc_low,cfc_mid,cfc_high,cla_vis006,cot,cot_ice,cot_liq,&
+         cth,ctp,ctp_log,ctt,cth_corrected,ctp_corrected,ctt_corrected,&
+         hist2d_cot_ctp,iwp,lwp
+    
+    CALL initialise_variable_flag(land_sea,solzen,time_of_day,cer_ice,cer_liq,&
+         cfc,cfc_low,cfc_mid,cfc_high,cla_vis006,cot,cot_ice,cot_liq,&
+         cth,ctp,ctp_log,ctt,cth_corrected,ctp_corrected,ctt_corrected,&
+         hist2d_cot_ctp,iwp,lwp)
+    
+    
+    OPEN(10,file=file,status='old')
+    READ(10,variables2run)  
+    CLOSE(10)
+
+    x%vars%land_sea       = land_sea      
+    x%vars%solzen         = solzen     
+    x%vars%time_of_day    = time_of_day   
+    x%vars%cer_ice        = cer_ice       
+    x%vars%cer_liq        = cer_liq       
+    x%vars%cfc            = cfc           
+    x%vars%cfc_low        = cfc_low       
+    x%vars%cfc_mid        = cfc_mid       
+    x%vars%cfc_high       = cfc_high      
+    x%vars%cla_vis006     = cla_vis006    
+    x%vars%cot            = cot           
+    x%vars%cot_ice        = cot_ice       
+    x%vars%cot_liq        = cot_liq       
+    x%vars%cth            = cth           
+    x%vars%ctp            = ctp           
+    x%vars%ctp_log        = ctp_log       
+    x%vars%ctt            = ctt           
+    x%vars%cth_corrected  = cth_corrected 
+    x%vars%ctp_corrected  = ctp_corrected 
+    x%vars%ctt_corrected  = ctt_corrected 
+    x%vars%hist2d_cot_ctp = hist2d_cot_ctp
+    x%vars%iwp            = iwp           
+    x%vars%lwp            = lwp           
+    
+  END SUBROUTINE variables_cloud_cci
+  
 END MODULE CLOUD_CCI_M

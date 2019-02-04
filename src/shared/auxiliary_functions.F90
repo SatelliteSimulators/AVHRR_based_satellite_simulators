@@ -10,14 +10,22 @@ MODULE AUXILIARY_FUNCTIONS
   USE HANDY,                      ONLY: CHECK_FILE
   USE INTERNAL_SIMULATOR,         ONLY: INTERNAL
   USE MODEL_INPUT,                ONLY: MODEL_TYPE,MODEL_AUX
-  USE MY_NETCDFTOOLS,             ONLY: CHECK
+  USE MY_NETCDFTOOLS,             ONLY: &
+       ADD_VARIABLE_ATTRIBUTES,         &
+       CHECK
   USE NETCDF,                     ONLY:&
+       NF90_CHAR,                      &
        NF90_CLOSE,                     &
+       NF90_DEF_VAR,                   &
+       NF90_ENDDEF,                    &
        NF90_GET_VAR,                   &
        NF90_INQUIRE,                   &
        NF90_INQUIRE_DIMENSION,         &
        NF90_INQ_VARID,                 &
        NF90_OPEN,                      &
+       NF90_PUT_ATT,                   &
+       NF90_PUT_VAR,                   &
+       NF90_REDEF,                     &              
        NF90_NOWRITE              
   USE NAMELIST_INPUT,            ONLY: NAME_LIST
   USE SIMULATOR_INPUT_VARIABLES, ONLY: SUBSET
@@ -27,6 +35,8 @@ MODULE AUXILIARY_FUNCTIONS
   PUBLIC :: AUX_DATA,              &
        CTP_TAU,                    &
        FIND_TEMPERATURE_INVERSIONS,&
+       HANDLE_VARIABLE_ATTRIBUTES, &
+       PUTVAR,                     &
        SOLAR_ZENITH_ANGLE
 
 
@@ -43,7 +53,6 @@ CONTAINS
        data1D,strDim3,data3D,nX,nY,nZ,dbg)
 
     IMPLICIT NONE
-    
 
     CHARACTER(len=1000), INTENT(in)       :: file ! the full path
     CHARACTER(len=*), INTENT(in)          :: variable,strDim1
@@ -52,13 +61,13 @@ CONTAINS
     TYPE(model_aux), INTENT(in),OPTIONAL  :: aux
     INTEGER, INTENT(in), OPTIONAL         :: dbg 
 
-    
+
     ! output
     REAL(wp), ALLOCATABLE, INTENT(out), OPTIONAL :: data1D(:)
     REAL(wp), ALLOCATABLE, INTENT(out), OPTIONAL :: data2D(:,:)
     REAL(wp), ALLOCATABLE, INTENT(out), OPTIONAL :: data3D(:,:,:)
     INTEGER, INTENT(out), OPTIONAL ::nX,nY,nZ
-    
+
     TYPE(flag)            :: flags
     CHARACTER(len = 100)  :: str
     LOGICAL               :: matchModel
@@ -93,7 +102,7 @@ CONTAINS
 
     ! Get the dimensions that span the look up tables
     DO dimid = 1, nDimensions
-       
+
        CALL CHECK( nf90_inquire_dimension( ncid, dimid, str, len ) )
        CALL CHECK( nf90_inq_varid(ncid, str, varid) )
 
@@ -163,14 +172,14 @@ CONTAINS
           CALL CONFORM_GRID_DATA_TO_MODEL(aux,flags,nlon=ndim1,nlat=ndim2,lon=dim1,lat=dim2,&
                ndim3=ndim3,data3=netcdf_data3D)
        END SELECT
-       
-    ! --------------------
-    ! REGRID
-    !
+
+       ! --------------------
+       ! REGRID
+       !
        ALLOCATE(tot(aux%nlon,aux%nlat))
-       
+
        IF (flags%modelIsCoarser) THEN
-       ! assuming the netcdf data has a FINER resolution than the model
+          ! assuming the netcdf data has a FINER resolution than the model
 
           ilt = 1
           DO lt = 1, ndim2
@@ -182,7 +191,7 @@ CONTAINS
                 ELSE
                    IF (dim2(lt) > aux%lat(1,ilt) .AND. ilt<aux%nlat) ilt=ilt+1
                 END IF
-                
+
                 tot(iln,ilt) = tot(iln,ilt) + 1
                 SELECT CASE(ndims)
                 CASE(2)
@@ -201,7 +210,7 @@ CONTAINS
              data3D(1:aux%nlon,1:aux%nlat,1:ndim3) = tmp_data3D/SPREAD(tot,3,ndim3)
           END SELECT
        ELSEIF (flags%modelIsFiner) THEN
-       ! assuming the netcdf data has a COARSER resolution than the model
+          ! assuming the netcdf data has a COARSER resolution than the model
 
           dLon=ABS((dim1(1)-dim1(2))/2)
           dLat=ABS((dim2(1)-dim2(2))/2)
@@ -213,7 +222,6 @@ CONTAINS
              ELSE
                 IF (dim2(ilt)+dLat < aux%lat(1,lt) .AND. ilt<ndim2) ilt=ilt+1
              END IF
-!             PRINT '("lat(",i3,")=",f5.1,"   dim2(",i3,")=",f5.1)',lt,aux%lat(1,lt),ilt,dim2(ilt)
 
              DO ln=1,aux%nlon
                 IF (dim1(iln)+dLon < aux%lon(ln,1) .AND. iln<ndim1) iln=iln+1
@@ -234,7 +242,7 @@ CONTAINS
              data3D = netcdf_data3D
           END SELECT
        ELSE
-!stop "I need to do something here for unfortunate grids"
+          !stop "I need to do something here for unfortunate grids"
        END IF
 
        DEALLOCATE(tot)
@@ -246,7 +254,7 @@ CONTAINS
           data3D=netcdf_data3D
        END SELECT
     END IF
-    
+
     DEALLOCATE (dim1)
     SELECT CASE(ndims)
     CASE(2)
@@ -258,9 +266,554 @@ CONTAINS
     IF (PRESENT(nX)) nX=ndim1
     IF (PRESENT(nY)) nX=ndim2
     IF (PRESENT(nZ)) nX=ndim3
-    
+
   END SUBROUTINE AUX_DATA
-  
+
+  SUBROUTINE HANDLE_VARIABLE_ATTRIBUTES(ncid,variable,ndim,id,varid,O,M)
+
+    ! Repository of variable names for use of saving to netcdf file
+    !
+    !
+    !
+    ! Salomon.Eliasson@smhi.se
+    !
+
+    USE DATA_CHECK,       ONLY: height_max,p_tau_max,P_max,tau_max,T_min,T_max
+    USE MODEL_INPUT,      ONLY: MODEL_TYPE,MODEL_AUX
+    USE NAMELIST_INPUT,   ONLY: NAME_LIST
+
+
+    IMPLICIT NONE
+
+    INTEGER, INTENT(in)                  :: ncid
+    CHARACTER(len=*),INTENT(in)          :: variable
+    INTEGER, INTENT(out)                 :: varid
+    TYPE(name_list),INTENT(in)           :: O
+    TYPE(model_type),OPTIONAL,INTENT(in) :: M
+    INTEGER, INTENT(in)                  :: ndim
+    INTEGER, INTENT(in)                  :: id(ndim)
+
+    !local
+    TYPE(model_aux)                      :: A
+    REAL(4)                              :: fvr = -999.0 
+    INTEGER, PARAMETER                   :: fvi = -999
+    LOGICAL                              :: isinteger
+    INTEGER                              :: varid_rotpole,i,nchan
+    CHARACTER(len=1000)                  :: units,description,long_name,&
+         string1,string2
+    CHARACTER(len=20)                    :: coordinates
+    CHARACTER(len=12)                    :: grid_mapping
+    CHARACTER(len=20)                    :: calendar
+    CHARACTER(len=1)                     :: axis
+    CHARACTER(len=20)                    :: standard_name
+    REAL(4) :: scale_factor,add_offset,valid_min,valid_max 
+
+4   FORMAT(a,1x,i3,a,f5.2)
+    IF (PRESENT(M)) A=M%aux
+    varid       = 0
+    isinteger   = .FALSE.
+    grid_mapping= ''
+
+    coordinates = ''
+
+    ! so far everything is stored to scale and is not offseted
+    scale_factor= 1._4
+    add_offset  = 0._4
+    nchan       = O%sim%nchannels
+    valid_min   = fvr
+    valid_max   = fvr 
+    IF (O%model.EQ.'racmo') THEN
+       IF (ndim.GT.1) THEN
+          IF (variable.NE.'time_bnds'.AND.variable.NE.'lon'.AND.variable.NE.'lat') THEN
+             grid_mapping= 'rotated_pole'
+             coordinates = 'lon lat'   
+          END IF
+       END IF
+    END IF
+
+    IF (O%sim%doRTTOV) THEN
+       WRITE(string1,'(I2)') O%sim%sensor
+       DO i = 1,nchan
+          IF (i==1) THEN
+             WRITE(string2,'(I2)') O%sim%channels(i)
+          ELSE
+             WRITE(string2,'(A,",",I2)') TRIM(string2),O%sim%channels(i)
+          END IF
+       END DO
+    END IF
+
+    CALL check( nf90_redef(ncid) )
+
+    SELECT CASE (variable)
+    CASE ('areacella')
+       units = "m2"
+       WRITE(description,'(A)') "" 
+       WRITE(long_name,'(A)') "Atmosphere Grid-Cell Area"
+    CASE ('block1')
+       units = ""
+       isinteger = .TRUE.
+       WRITE(description,'(A)') ""
+       WRITE(long_name,'(A)') "GRIB Definition Block1"
+    CASE ('block2')
+       units = ""
+       isinteger = .TRUE.
+       WRITE(description,'(A)') ""
+       WRITE(long_name,'(A)') "GRIB Definition Block2"
+    CASE ('detection_limit')
+       units = ""
+       WRITE(description,'(A)') "optical depth values above which 50%&
+            & or more of clouds are detected"
+       WRITE(long_name,'(A)') "detection_limit"
+       valid_min=0
+       valid_max=100
+    CASE ('dtg')
+       units = "yyyymmddhh"
+       isinteger = .TRUE.
+       WRITE(description,'(A)') "dtg"
+       WRITE(long_name,'(A)') "Verifying Datum-Time Group"
+    CASE ('lat')
+       units = "degrees_north"
+       WRITE(description,'(A)') "North of the equator" 
+       WRITE(long_name,'(A)') "latitude"
+    CASE ('lon')
+       units = "degrees_east"
+       WRITE(description,'(A)') "East from Greenwich"
+       WRITE(long_name,'(A)') "longitude"
+    CASE ('lsm')
+       units =  "fraction"
+       WRITE(description,'(A)') "Grid fractional cover of land"
+       WRITE(long_name,'(A)') "Grid fractional cover of land"
+    CASE ('rlon')
+       units = "degrees"
+       description = ''
+       WRITE(long_name,'(A)') "longitude in rotated pole grid"
+    CASE ('rlat')
+       units = "degrees"
+       description = ''
+       WRITE(long_name,'(A)') "latitude in rotated pole grid"
+    CASE ('hist2d_ctp_bin_border')
+       units = "Pa"
+       WRITE(description,'(A)') "Box boundaries of the vertical profile of atmospheric &
+            &pressure, used to make CTP -tau histograms"
+       WRITE(long_name,'(A)') "Box boundaries of the vertical profile of atmospheric pressure"
+    CASE ('hist2d_cot_bin_border')
+       units = "-"
+       WRITE(description,'(A)') &
+            "optical thickness box boundaries used to make CTP -tau histograms"
+       WRITE(long_name,'(A)') "optical thickness box boundaries" 
+    CASE ('hist2d_ctp_bin_centre')
+       units = "Pa"
+       WRITE(description,'(A)') "Box centres of the vertical profile of atmospheric &
+            &pressure, used to make CTP -tau histograms"
+       WRITE(long_name,'(A)') "Box centres of the vertical profile of atmospheric pressure"
+    CASE ('hist2d_cot_bin_centre')
+       units = "-"
+       WRITE(description,'(A)') &
+            "optical thickness box centres used to make CTP -tau histograms"
+       WRITE(long_name,'(A)') "optical thickness box centres"
+    CASE ('hist_phase')
+       units = "-"
+       WRITE(description,'(A)') &
+            "cloud phase dimension for hist2d_cot_ctp. 0=ice,1=liq"
+       WRITE(long_name,'(A)') "cloud phase dimension"
+    CASE ('POD_layers')
+       units = ""
+       WRITE(description,'(A)') "Probability of detection in optical depth bins"
+       WRITE(long_name,'(A)') "probability of detection"
+       valid_min=0
+       valid_max=1
+    CASE ('POD_tau_bin_centers')
+       units = ""
+       WRITE(description,'(A)') "Optical depth bin centers of bins between which POD and FAR are calculated"
+       WRITE(long_name,'(A)') "COT bin centers used for POD layers"
+       valid_min=0
+       valid_max=5
+    CASE ('POD_tau_bin_edges')
+       units = ""
+       WRITE(description,'(A)') "Optical depth bin edges between which POD and FAR are calculated"
+       WRITE(long_name,'(A)') "COT bin edges used for POD layers"
+       valid_min=0
+       valid_max=9999
+    CASE ('solzen')
+       units =  "deg"
+       WRITE(description,'(A)') "Grid Solar Zenith Angle"
+       WRITE(long_name,'(A)') "Grid Solar Zenith Angle"
+    CASE ('time_of_day')
+       units =  "hr"
+       WRITE(description,'(A)') "Overpass Time of Day"
+       WRITE(long_name,'(A)') "overpass time of day"
+    CASE ('time')
+       units = "days since 1970-01-01 00:00:00.0"
+       WRITE(description,'(A)') "time"
+       WRITE(long_name,'(A)') "time"
+       WRITE(calendar,'(A)') "standard"
+    CASE ('time_bnds')
+       units = "days since 1970-01-01 00:00:00.0"
+       WRITE(description,'(A)') "time_bnds"
+       WRITE(long_name,'(A)') "time_bnds"
+
+       !
+       ! AUXILIARY
+       ! ------
+
+       ! -------------------------------
+       ! SIMULATED VARIABLES
+       ! 
+    CASE ('albedo')
+       units='fraction'
+       WRITE(description,'(A)') "simulated cloudy albedo"
+       WRITE(long_name,'(A)') "simulated cloudy albedo during daytime" 
+       valid_min=0
+       valid_max=1
+    CASE ('cfc')
+       units = "fraction"
+       WRITE(description,'(A)') "simulated total cloud cover"
+       WRITE(long_name,'(A)') "total cloud cover" 
+       valid_min=0
+       valid_max=1
+    CASE ('cfc_day')
+       units = "fraction"
+       WRITE(description,'(A)') "simulated total cloud cover during daytime conditions only"
+       WRITE(long_name,'(A)') "total cloud cover day clouds"
+       valid_min=0
+       valid_max=1
+    CASE ('cfc_low')
+       units = "fraction"
+       WRITE(description,'(A)') "simulated total cloud cover for&
+            &clouds with CTP greater than 680 hPa"
+       WRITE(long_name,'(A)') "total cloud cover low clouds"
+       valid_min=0
+       valid_max=1
+    CASE ('cfc_mid')
+       units = "fraction"
+       WRITE(description,'(A)') "simulated total cloud cover for&
+            &clouds with CTP less than 680 hPa and greater than 440 hPa"
+       WRITE(long_name,'(A)') "total cloud cover mid clouds"
+       valid_min=0
+       valid_max=1
+    CASE ('cfc_high')
+       units = "fraction"
+       WRITE(description,'(A)') "simulated total cloud cover for&
+            &clouds with CTP less than 440 hPa"
+       WRITE(long_name,'(A)') "total cloud cover high clouds"
+       valid_min=0
+       valid_max=1
+    CASE ('cla_vis006')
+       units = "%"
+       WRITE(description,'(A)')&
+            "Simulated cloud albedo at 0.6 micron"
+       WRITE(long_name,'(A)') "Simulated grid average cloud albedo" 
+       valid_min=0
+       valid_max=100
+    CASE ('cth')
+       units = 'm'
+       WRITE(description,'(A)') "simulated cloud top height"
+       WRITE(long_name,'(A)') "cloud top height" 
+       valid_min=1
+       valid_max=height_max
+    CASE ('cth_corrected')
+       units = 'm'
+       WRITE(description,'(A,1x,F5.2,A,F5.2)')&
+            "simulated CTH based on the CLOUD_CCI method (height corrected) of finding the cloud&
+            & top (where tau=",O%cloudMicrophys%tau_equivRadCldTop,&
+            "), but also where tau >",O%cloudMicrophys%tau_min
+       WRITE(long_name,'(A)') "corrected cloud top equivalent cloud top height" 
+       valid_min=1
+       valid_max=height_max
+    CASE ('ctp')
+       units = 'Pa'
+       WRITE(description,'(A)') "simulated cloud top pressure. &
+            &Derived from linear-averaging of the sub-grid CTP"
+       WRITE(long_name,'(A)') "cloud top pressure"
+       valid_min=0
+       valid_max=P_max
+    CASE ('ctp_log')
+       units = 'Pa'
+       WRITE(description,'(A)') "simulated cloud top pressure. &
+            &Derived from log-averaging of the sub-grid CTP"
+       WRITE(long_name,'(A)') "cloud top pressure" 
+       valid_min=1
+       valid_max=P_max
+    CASE ('ctp_corrected')
+       units = 'Pa'
+       WRITE(description,'(A,1x,F5.2,A,F5.2)')&
+            "simulated CTP based on the CLOUD_CCI method (height corrected) &
+            &of finding the cloud top (where tau=",&
+            O%cloudMicrophys%tau_equivRadCldTop,&
+            "), but also where tau >",O%cloudMicrophys%tau_min
+       WRITE(long_name,'(A)') "corrected cloud top equivalent cloud top pressure" 
+       valid_min=1
+       valid_max=P_max
+    CASE ('ctt')
+       units = 'K'
+       WRITE(description,'(A)') "simulated cloud top temperature"
+       WRITE(long_name,'(A)') "cloud top temperature"
+       valid_min=T_min
+       valid_max=T_max
+    CASE ('ctt_corrected')
+       units = 'K'
+       WRITE(description,'(A,1x,F5.2,A,F5.2)')&
+            "simulated CTT based on the CLOUD_CCI method (height corrected) of finding the cloud&
+            & top (where tau=",O%cloudMicrophys%tau_equivRadCldTop,&
+            "), but also where tau >",O%cloudMicrophys%tau_min
+       WRITE(long_name,'(A)') "corrected cloud top equivalent cloud top temperature"
+       valid_min=T_min
+       valid_max=T_max
+    CASE ('icf')
+       units = "fraction"
+       WRITE(description,'(A)') "simulated fraction of clouds that contain more ice&
+            &than liquid particles"
+       WRITE(long_name,'(A)') "fraction of grid covered by ice clouds"
+       valid_min=0
+       valid_max=1
+    CASE ('ireff','cer_ice','ref_ice')
+       units = "micron"
+       WRITE(description,'(A)') "simulated ice effective radius"
+       WRITE(long_name,'(A)') "ice effective radius"
+       valid_min=1
+       valid_max=155
+    CASE ('itau','cot_ice')
+       units = "-"
+       WRITE(description,'(A)') "simulated grid average cloud optical thickness for ice clouds"
+       WRITE(long_name,'(A)') "Grid average optical thickness ice cloud" 
+       valid_min=0
+       valid_max=tau_max
+    CASE ('iwp')
+       units = "kg/m^2"
+       WRITE(description,'(A)') "simulated grid average ice water path"
+       WRITE(long_name,'(A)') "ice water path" 
+       valid_min=0
+       valid_max=1e6
+    CASE ('lcf')
+       units = "fraction"
+       WRITE(description,'(A)') "simulated fraction of clouds that contain more liquid&
+            &than ice particles"
+       WRITE(long_name,'(A)') "fraction of grid covered by liquid clouds"
+       valid_min=0
+       valid_max=1
+    CASE ('lreff','cer_liq','ref_liq')
+       units = "micron"
+       WRITE(description,'(A)') "simulated liquid effective radiusd"
+       WRITE(long_name,'(A)') "liquid effective radius" 
+       valid_min=1
+       valid_max=155
+    CASE ('ltau','cot_liq')
+       units = "-"
+       WRITE(description,'(A)') "simulated grid average cloud optical thickness for liquid clouds"
+       WRITE(long_name,'(A)') "Grid average optical thickness liquid cloud" 
+       valid_min=1
+       valid_max=tau_max
+    CASE ('lwp')
+       units = "kg/m^2"
+       WRITE(description,'(A)') "grid average liquid water path"
+       WRITE(long_name,'(A)') "liquid water path" 
+       valid_min=1
+       valid_max=1e6
+    CASE ('hist2d_cot_ctp')
+       units = "unitless"
+       isinteger = .TRUE.
+       WRITE(description,4) "CTP--tau hits (lon,lat,n*tau bins,n*pressure bins) &
+            & based on ",O%ncols,"sub-grids in each grid box and only includ&
+            &ing clouds that have tau > ",O%cloudMicrophys%tau_min
+       WRITE(long_name,'(A)') "Cloud top pressure- cloud optical thickness histograms"
+       valid_min=0
+       valid_max=1e6
+    CASE ('tau','cot')
+       units = "-"
+       WRITE(description,'(A)') "grid average cloud optical thickness"
+       WRITE(long_name,'(A)') "optical thickness" 
+       valid_min=0
+       valid_max=tau_max
+    CASE ('tau_subcolumn')
+       units = "-"
+       WRITE(description,'(A)') "tau for individual subcolumns"
+       WRITE(long_name,'(A)') "cloud optical thickness for individual subcolumns"
+       valid_min=0
+       valid_max=tau_max
+       ! This has changed its meaning after the introduction of the ISCCP simulator
+       !CASE ('Tb')
+       !   units = "K"
+       !   WRITE(description,'(5(A,1x))') "Tb from RTTOV, sensor=",TRIM(string1),&
+       !        &"channels =",TRIM(string2),". See RTTOV user guide for details"
+       !   WRITE(long_name,'(A)') "Brightness temperature"
+       !   valid_min=T_min
+       !   valid_max=T_max
+       !CASE ('Tb_clr')
+       !   units = "K"
+       !   WRITE(description,'(5(A,1x))') "Box average clear sky Tb from RTTOV, &
+       !        &sensor=",TRIM(string1),"channels =",TRIM(string2),&
+       !        ". See RTTOV user guide for details"
+       !   WRITE(long_name,'(A)') "Brightness temperature from clear sky"
+       !   valid_min=T_min
+       !   valid_max=T_max
+       !CASE ('Tb_subcolumn')
+       !   units = "K"
+       !   WRITE(description,'(5(A,1x))') "Tb for individual subcolumns. &
+       !        &Tb from RTTOV, sensor=",TRIM(string1),&
+       !        &"channels =",TRIM(string2),". See RTTOV user guide for details"
+       !   WRITE(long_name,'(A)') "Brightness temperature  for individual subcolumns"
+       !   valid_min=T_min
+       !   valid_max=T_max
+       !
+       ! END Simulated fields
+       !------------------------
+
+       !------------------------
+       ! DIRECT MODEL FIELDS
+       !
+    CASE ('CI')
+       units = "-"
+       WRITE(description,'(A)') "Sea ice fraction [0-1]. code = 31"
+       WRITE(long_name,'(A)') "Sea ice fraction"
+       valid_min=0
+       valid_max=1
+    CASE ('ireff3D')
+       units = "micron"
+       WRITE(description,'(A)') "model layered ice effective radius"
+       WRITE(long_name,'(A)') "model ice effective radius"
+       valid_min=1
+       valid_max=155
+    CASE ('lreff3D')
+       units = "micron"
+       WRITE(description,'(A)') "model layerd liquid effective radius"
+       WRITE(long_name,'(A)') "liquid effective radius"
+       valid_min=1
+       valid_max=155
+    CASE ('SKT')
+       units = "K"
+       WRITE(description,'(A)') "Model Skin temperature. Temperature of the surface skin &
+            & (radiative surface temperature). Before 01/10/2008, the &
+            & skin temperature was equal to the bulk SST over the ocean. paramId=235"
+       WRITE(long_name,'(A)') "model skin temperature" 
+       valid_min=T_min
+       valid_max=T_max
+    CASE ('TCC')
+       units = "fraction"
+       WRITE(description,'(A)') "model total cloud cover"
+       WRITE(long_name,'(A)') description
+       valid_min=0
+       valid_max=1
+    CASE ('TCWV')
+       units = "kg m**-2"
+       WRITE(description,'(A)') "model total column water vapour. paramid = 137"
+       WRITE(long_name,'(A)') "model total column water vapour"
+       valid_min=0
+       valid_max=100
+       !
+       ! END Direct model fields
+       !------------------------
+
+    CASE DEFAULT
+       PRINT '(3(a,1x))',"variable:",variable,"is not setup"
+       STOP "stopped in addVariable"
+    END SELECT
+
+    CALL add_variable_attributes(ncid,varid,variable,id(1:ndim), ndim,&
+         add_offset=add_offset,coordinates=coordinates,description=description,&
+         fillvalue_i=fvi,fillvalue_r=fvr,grid_mapping=grid_mapping,&
+         isinteger=isinteger,long_name=long_name,scale_factor=scale_factor,&
+         unit=units,valid_min=valid_min,valid_max=valid_max,dbg=O%dbg)
+
+    ! And a little bit more....
+    CALL check( nf90_redef(ncid) )
+
+    SELECT CASE (variable)
+    CASE ('time')
+       WRITE(calendar,'(A)') "standard"
+       CALL check( nf90_put_att(ncid,varid, "bounds", "time_bnds"))
+       CALL check( nf90_put_att(ncid,varid, "calendar", calendar))
+    CASE ('rlat')
+       WRITE(axis,'(A)')"Y"
+       WRITE(standard_name,'(A)')"grid_latitude"
+       CALL check( nf90_put_att(ncid,varid, "axis", axis))
+       CALL check( nf90_put_att(ncid,varid, "standard_name", standard_name))
+       ! ... abuse invoking 'rlat' to specify 'rotated_pole' which contains only attributes
+       CALL check( nf90_def_var(ncid=ncid,name='rotated_pole',xtype=NF90_CHAR,varID=varid_rotpole))
+       CALL check( nf90_put_att(ncid,varid_rotpole,"grid_mapping_name",A%rotgrid))
+       CALL check( nf90_put_att(ncid,varid_rotpole,"proj",A%rotproj))
+       CALL check( nf90_put_att(ncid,varid_rotpole,"grid_north_pole_latitude",A%float_rotpolat))
+       CALL check( nf90_put_att(ncid,varid_rotpole,"grid_north_pole_longitude",A%float_rotpolon))
+    CASE ('rlon')
+       WRITE(axis,'(A)')"X"
+       WRITE(standard_name,'(A)')"grid_longitude"
+       CALL check( nf90_put_att(ncid,varid, "axis", axis))
+       CALL check( nf90_put_att(ncid,varid, "standard_name", standard_name))
+    CASE ('lon')
+       WRITE(standard_name,'(A)')"longitude"
+       CALL check( nf90_put_att(ncid,varid, "standard_name", standard_name))
+    CASE ('lat')
+       WRITE(standard_name,'(A)')"latitude"
+       CALL check( nf90_put_att(ncid,varid, "standard_name", standard_name))
+    END SELECT
+
+    CALL check( nf90_enddef(ncid) )
+
+  END SUBROUTINE HANDLE_VARIABLE_ATTRIBUTES
+
+  SUBROUTINE putVar(ncid,varid,A,data1,data2,data3,data4)
+
+    IMPLICIT NONE
+
+    INTEGER,         INTENT(in) :: ncid,varid
+    TYPE(model_aux), INTENT(in) :: A
+    REAL(wp),        INTENT(in),OPTIONAL :: data1(:),data2(:,:)
+    REAL(wp),        INTENT(in),OPTIONAL :: data3(:,:,:),data4(:,:,:,:)
+    INTEGER,ALLOCATABLE                  :: sz(:)
+    INTEGER :: ndim
+
+    IF (PRESENT(data1)) ndim=1
+    IF (PRESENT(data2)) ndim=2
+    IF (PRESENT(data3)) ndim=3
+    IF (PRESENT(data4)) ndim=4
+
+    ALLOCATE(sz(ndim))
+
+    SELECT CASE (ndim)
+    CASE(1)
+       sz(1:ndim)=SHAPE(data1)
+       IF (sz(1)==A%ngrids) THEN
+          CALL check(nf90_put_var(ncid,varid,&
+               RESHAPE(data1,(/A%nlon,A%nlat/))))
+          ndim=ndim+1
+       ELSE
+          CALL check(nf90_put_var(ncid,varid,data1))
+       END IF
+    CASE(2)
+       sz(1:ndim)=SHAPE(data2)
+       IF (sz(1)==A%ngrids) THEN
+          CALL check(nf90_put_var(ncid,varid,&
+               RESHAPE(data2,(/A%nlon,A%nlat,sz(2)/))))
+          ndim=ndim+1
+       ELSE
+          CALL check(nf90_put_var(ncid,varid,data2))
+       END IF
+    CASE(3)
+       sz(1:ndim)=SHAPE(data3)
+       IF (sz(1)==A%ngrids) THEN
+          CALL check(nf90_put_var(ncid,varid,&
+               RESHAPE(data3,(/A%nlon,A%nlat,sz(2),sz(3)/))))
+          ndim=ndim+1
+       ELSE
+          CALL check(nf90_put_var(ncid,varid,data3))
+       END IF
+    CASE(4)
+       sz(1:ndim)=SHAPE(data4)
+       IF (sz(1)==A%ngrids) THEN
+          CALL check(nf90_put_var(ncid,varid,&
+               RESHAPE(data4,(/A%nlon,A%nlat,sz(2),sz(3),sz(4)/))))
+          ndim=ndim+1
+       ELSE
+          CALL check(nf90_put_var(ncid,varid,data4))
+       END IF
+    END SELECT
+
+    DEALLOCATE(sz)    
+
+99  FORMAT('Added ',i1,' dimensional data')
+    !PRINT 99,ndim
+
+  END SUBROUTINE putVar
+
   FUNCTION SOLAR_ZENITH_ANGLE(lat,day_of_year,local_solar_time,ngrids,onlyThese)
     !
     ! This subroutine calculated the solar zenith angle
@@ -531,10 +1084,10 @@ CONTAINS
 
     ! Loop from the surface up to the tropopause
     tropopause_count = 0
-    
+
     DO d1 = 1,ngrids
        DO inl = nlev,2,-1
-          
+
           !IF (sub%data_mask(d1,inl)) CYCLE
           IF ( sub%Tcorr(d1,inl) .GE. sub%Tcorr(d1,inl+1) ) THEN
              ! 
@@ -546,7 +1099,7 @@ CONTAINS
                 ! array if the level below this one was not an
                 ! inversion (as long as we are still in the
                 ! tropopause), save the model level as an inversion level
-                
+
                 invInd(d1) = invInd(d1)+1
                 inversions(d1,invInd(d1)) = inl
                 inversion_pressure(d1) = sub%p_mid(d1,inl)
@@ -571,7 +1124,7 @@ CONTAINS
              ! inversion the tropopause, or if none where found
              ! set the tropopause to this level
              trop_lev(d1) = MAXVAL([inl,MINVAL(inversions(d1,1:nlev))])
-             
+
              ! exit this level loop
              EXIT
           ENDIF
@@ -581,11 +1134,7 @@ CONTAINS
           END IF
        END DO ! nlevel
     END DO ! ngrids
-    
-!!$    WHERE( .NOT.sub%data_mask(1:ngrids,1) .AND.&
-!!$         ( invInd(1:ngrids) .EQ. 0 .OR. & !no inversions
-!!$         inversion_pressure(1:ngrids).GT.MaximumTropopausePressure))!too low
-       
+
     WHERE( invInd(1:ngrids) .EQ. 0 .OR. & !no inversions
          inversion_pressure(1:ngrids).GT.MaximumTropopausePressure)!too low
 
@@ -629,7 +1178,7 @@ CONTAINS
     INTEGER             :: ind(1)
     LOGICAL             :: dim2
 
-    
+
     ! initialise all
     out_lon      = fill
     out_lat      = fill
@@ -647,7 +1196,7 @@ CONTAINS
        out_data3     = fill
        tmp_out_data3 = fill
     END IF
-    
+
     tmp_out_lon  = fill
 
     latcond1=.FALSE.
@@ -708,13 +1257,13 @@ CONTAINS
        IF (loncond2) tmp_out_lon = MERGE(lon+360, lon, lon .LT. 0  )
 
        ! my funky way of sorting
-!
+       !
        IF (dim2) THEN
           tmp_out_data2=out_data2(1:nlon,1:nlat)
        ELSE
           tmp_out_data3=out_data3(1:nlon,1:nlat,1:ndim3)
        END IF
-       
+
        DO i = 1,nlon
           ind = MINLOC(tmp_out_lon)
           out_lon(i)=tmp_out_lon(ind(1))
@@ -742,7 +1291,7 @@ CONTAINS
        data3 = out_data3
        DEALLOCATE(out_data3,tmp_out_data3)
     END IF
-    
+
     lon  = out_lon
     lat  = out_lat
 

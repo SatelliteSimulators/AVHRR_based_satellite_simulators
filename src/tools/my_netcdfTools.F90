@@ -22,8 +22,9 @@ MODULE my_netcdfTools
 
   IMPLICIT NONE
 
-  PUBLIC :: preamble_Netcdf, add_variable_attributes,&
-       check          
+  PUBLIC :: add_variable_attributes,&
+       check,                       &
+       preamble_Netcdf 
 
 CONTAINS
 
@@ -191,7 +192,7 @@ CONTAINS
     CHARACTER (len=*), INTENT(in), OPTIONAL :: long_name,unit,description,coordinates,grid_mapping
     LOGICAL, INTENT(in), OPTIONAL           :: isinteger
     REAL(4), INTENT(in), OPTIONAL           :: fillvalue_r,scale_factor,add_offset,&
-                                               valid_min,valid_max
+         valid_min,valid_max
     INTEGER, INTENT(in), OPTIONAL           :: fillvalue_i
     INTEGER, INTENT(in), OPTIONAL           :: dbg
 
@@ -205,14 +206,14 @@ CONTAINS
     IF (PRESENT(description))   CALL CHECK(NF90_PUT_ATT(ncid,varid,"description",description))
     IF (PRESENT(unit))          CALL CHECK(NF90_PUT_ATT(ncid,varid,"units",unit))
     IF (PRESENT(coordinates).AND.TRIM(coordinates).NE.'') &
-                                CALL CHECK(NF90_PUT_ATT(ncid,varid,"coordinates",coordinates))
+         CALL CHECK(NF90_PUT_ATT(ncid,varid,"coordinates",coordinates))
     IF (isinteger) THEN
        IF (PRESENT(fillvalue_i))CALL CHECK(NF90_PUT_ATT(ncid,varid,"_FillValue",fillvalue_i))
     ELSE
        IF (PRESENT(fillvalue_r))CALL CHECK(NF90_PUT_ATT(ncid,varid,"_FillValue",fillvalue_r))
     ENDIF
     IF (PRESENT(grid_mapping).and.TRIM(grid_mapping).NE.'') &
-                                CALL CHECK(NF90_PUT_ATT(ncid,varid,"grid_mapping",grid_mapping))
+         CALL CHECK(NF90_PUT_ATT(ncid,varid,"grid_mapping",grid_mapping))
     IF (PRESENT(scale_factor))  CALL CHECK(NF90_PUT_ATT(ncid,varid,"scale_factor",scale_factor))
     IF (PRESENT(add_offset))    CALL CHECK(NF90_PUT_ATT(ncid,varid,"add_offset",add_offset))
     IF (PRESENT(valid_min)) THEN
@@ -243,7 +244,7 @@ CONTAINS
     INTEGER, OPTIONAL, INTENT(in):: dbg
     LOGICAL, OPTIONAL, INTENT(out) :: fail
     LOGICAL :: hasdbg,hasfail
-    
+
     hasdbg = PRESENT(dbg) .AND. PRESENT(string)
     hasfail=.FALSE. ! reusing this
     IF ((hasdbg) .AND. (dbg>0)) THEN

@@ -124,7 +124,7 @@ contains
     IF (.NOT. options%sim%doRTTOV) THEN
        ALLOCATE(sub%solzen(ngrids))
     END IF
-    IF (options%sim%doClara) THEN
+    IF (options%sim%doClara .OR. options%sim%doISCCP) THEN
        ALLOCATE( sub%cloud_emis     (ngrids,nlev ),&
             sub%irradiance     (ngrids,nlev ),&
             sub%Q_kgm2         (ngrids,nlev ),&
@@ -174,7 +174,7 @@ contains
     IF (.NOT. options%sim%doRTTOV) &
          sub%solzen     (1:ngrids          )= -999._wp
 
-    IF (options%sim%doClara) THEN
+    IF (options%sim%doClara .OR. options%sim%doISCCP) THEN
        sub%cloud_emis     (1:ngrids,1:nlev   )= -999._wp
        sub%irradiance     (1:ngrids,1:nlev   )= -999._wp
        sub%Q_kgm2         (1:ngrids,1:nlev   )= -999._wp
@@ -248,7 +248,7 @@ contains
          sub%tau              ,&
          sub%Tcorr            )
     IF (.NOT. options%sim%doRTTOV) DEALLOCATE(sub%solzen)
-    IF (options%sim%doClara) THEN
+    IF (options%sim%doClara .or. options%sim%doISCCP) THEN
        DEALLOCATE(sub%cloud_emis     ,&
             sub%irradiance     ,&
             sub%Q_kgm2         ,&
