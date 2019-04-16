@@ -140,6 +140,10 @@ CONTAINS
     REAL(wp)          :: ucLim!  [optical depth]
     REAL(wp), ALLOCATABLE :: ac_tau(:,:)
 
+    ! 'tau_equivRadCldTop' = Cloud optical depth where the radiantly equivalent cloud
+    !                        top height is located. The MODIS satellite
+    !                        simulator assumes tau_equivRadCldTop = 1(pincus et. al., 2012)
+    ! Now hard coded
     ucLim = 1 !options%cloudMicrophys%tau_equivRadCldTop
     ALLOCATE( ac_tau (nc,nlev+1) )
     ac_tau (1:nc,1:nlev+1) = 0._wp ! padding the top row with 0s,
