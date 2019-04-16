@@ -88,12 +88,10 @@ MODULE namelist_input
      !
      ! 'tau_min'            = Cloud optical depth threshold for CLARA-A1. This
      !                        should be listed in the namelist
-     ! 'tau_equivRadCldTop' = Cloud optical depth where the radiantly equivalent cloud
-     !                        top height is located. The MODIS satellite
-     !                        simulator assumes tau_equivRadCldTop = 1(pincus et. al., 2012)
+
 
      INTEGER  :: cf_method
-     REAL(wp) :: tau_min,tau_equivRadCldTop
+     REAL(wp) :: tau_min
 
   END TYPE cloudMicrophysics
   TYPE illumination
@@ -463,10 +461,10 @@ CONTAINS
 
     CHARACTER(len=*),INTENT(in)    :: file
     TYPE(name_list), INTENT(inout) :: x
-    REAL(wp)                       :: tau_min,tau_equivRadCldTop
+    REAL(wp)                       :: tau_min
     INTEGER                        :: cf_method
 
-    NAMELIST/cloudMicrophys/cf_method,tau_min,tau_equivRadCldTop
+    NAMELIST/cloudMicrophys/cf_method,tau_min
 
     OPEN(10,file=file,status='old')
     READ(10,cloudMicrophys)  
@@ -474,7 +472,6 @@ CONTAINS
 
     X%cloudMicrophys%cf_method          = cf_method
     X%cloudMicrophys%tau_min            = tau_min
-    X%cloudMicrophys%tau_equivRadCldTop = tau_equivRadCldTop
   END SUBROUTINE namelist_microphys
   
 END MODULE namelist_input
