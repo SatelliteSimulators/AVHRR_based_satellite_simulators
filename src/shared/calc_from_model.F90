@@ -160,10 +160,13 @@ CONTAINS
     !
     ! J.F. Meirink, 2014-07-09
     !
-    ! Parameterizations for:
-    ! - liquid clouds: Martin et al., JAS, 1994.
-    ! - ice clouds:
-    !  f(T,IWC): Sun and Rikus (1999) revised by Sun (2001)
+    ! Parameterizations for: 
+    ! - liquid clouds: Martin et al., JAS,
+    !
+    ! 1994.  - ice clouds: f(T,IWC): Sun and Rikus (1999) revised by
+    ! Sun (2001). Note: The latitude dependence is based on the observations
+    ! that tropical clouds typically have larger particles than extra
+    ! tropical clouds, e.g., Field et. al., 2007, JAS
 
     ! -----------------------
     !   LIQUID CLOUDS
