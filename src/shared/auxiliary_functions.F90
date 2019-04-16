@@ -515,8 +515,7 @@ CONTAINS
        units = 'm'
        WRITE(description,'(A,1x,F5.2,A,F5.2)')&
             "simulated CTH based on the CLOUD_CCI method (height corrected) of finding the cloud&
-            & top (where tau=",O%cloudMicrophys%tau_equivRadCldTop,&
-            "), but also where tau >",O%cloudMicrophys%tau_min
+            & top (where tau=1), but also where tau >",O%cloudMicrophys%tau_min
        WRITE(long_name,'(A)') "corrected cloud top equivalent cloud top height" 
        valid_min=1
        valid_max=height_max
@@ -538,9 +537,7 @@ CONTAINS
        units = 'Pa'
        WRITE(description,'(A,1x,F5.2,A,F5.2)')&
             "simulated CTP based on the CLOUD_CCI method (height corrected) &
-            &of finding the cloud top (where tau=",&
-            O%cloudMicrophys%tau_equivRadCldTop,&
-            "), but also where tau >",O%cloudMicrophys%tau_min
+            &of finding the cloud top (where tau=0.3), but also where tau >",O%cloudMicrophys%tau_min
        WRITE(long_name,'(A)') "corrected cloud top equivalent cloud top pressure" 
        valid_min=1
        valid_max=P_max
@@ -554,8 +551,7 @@ CONTAINS
        units = 'K'
        WRITE(description,'(A,1x,F5.2,A,F5.2)')&
             "simulated CTT based on the CLOUD_CCI method (height corrected) of finding the cloud&
-            & top (where tau=",O%cloudMicrophys%tau_equivRadCldTop,&
-            "), but also where tau >",O%cloudMicrophys%tau_min
+            & top (where tau=0.3), but also where tau >",O%cloudMicrophys%tau_min
        WRITE(long_name,'(A)') "corrected cloud top equivalent cloud top temperature"
        valid_min=T_min
        valid_max=T_max
@@ -814,7 +810,7 @@ CONTAINS
 
   END SUBROUTINE putVar
 
-  FUNCTION SOLAR_ZENITH_ANGLE(lat,day_of_year,local_solar_time,ngrids,onlyThese)
+  FUNCTION SOLAR_ZENITH_ANGLE(lat,day_of_year,local_solar_time,ngrids)
     !
     ! This subroutine calculated the solar zenith angle
 
@@ -836,61 +832,56 @@ CONTAINS
     REAL(wp),INTENT(in),DIMENSION(ngrids) :: lat
     REAL(wp),INTENT(in),DIMENSION(ngrids) :: local_solar_time
     REAL(wp),           DIMENSION(ngrids) :: solar_zenith_angle
-    LOGICAL, INTENT(in),DIMENSION(ngrids), OPTIONAL :: onlyThese
 
-
-
-    ! the Earth's orbirtal eccentricity
-    REAL(wp), PARAMETER                       :: eoe  = 0.167_wp      
     ! The Earth's mean angular orbital velocity in degrees per day
-    REAL(wp), PARAMETER                       :: W    = 360/365.24_wp 
-    ! the Earth's obliquity angle in degrees
-    REAL(wp), PARAMETER                       :: tilt = 23.44      
-    REAL(wp), PARAMETER                       :: d180 = 180._wp
-    ! convert radians to degrees
-    REAL(wp), PARAMETER                       :: R_D  = d180/pi    
-    ! convert degrees to radians
-    REAL(wp), PARAMETER                       :: D_R  = pi/d180    
-
+    REAL(wp) :: W
     REAL(wp) :: A, B, C, D
     REAL(wp) :: H(ngrids)
     REAL(wp) :: EoT                         ! equation of time
     REAL(wp) :: dcl                         ! declination
     REAL(wp) :: LST(ngrids)
-    LOGICAL, DIMENSION(ngrids) :: data_mask
 
-    IF (PRESENT(onlyThese)) THEN
-       data_mask(1:ngrids) = onlyThese(1:ngrids)
-    ELSE
-       data_mask(1:ngrids) = .TRUE.
-    END IF
-
+    LST                          = -999._wp
     solar_zenith_angle(1:ngrids) = -999._wp
 
     ! ----------------
     ! EQUATION OF TIME
     ! http://en.wikipedia.org/wiki/Equation_of_time
 
-    ! Angle the earth would move on its orbit at its average speed from
-    ! the December solstice to date D.  D is the date, in days starting at
-    ! zero on 1 January. 10 is the approximate number of days from the
-    ! December solstice to 1 January.
-    D = day_of_year - 1
-    A = W * (D+10) !deg
+    W = 360/365.24_wp 
+    ! W is the Earth's mean angular orbital velocity in degrees per day.
 
-    !Angle the Earth moves from the solstice to date D, including a first-order
-    !correction for the Earth's orbital eccentricity, 0.167. The number 2 is
+
+    D = day_of_year - 1
+    A = W * (D+10)
+
+    ! D is the date, in days starting at zero on 1 January (i.e. the
+    ! days part of the ordinal date minus 1). 10 is the approximate
+    ! number of days from the December solstice to 1 January. A is the
+    ! angle the earth would move on its orbit at its average speed
+    ! from the December solstice to date D.
+
+    B = A + 360/pi * 0.0167 * SIND(W*(D-2))
+
+    !B is the angle the Earth moves from the solstice to date D, including a first-order
+    !correction for the Earth's orbital eccentricity, 0.0167. The number 2 is
     !the number of days from January 1 to the date of the Earth's perihelion.
 
-    B = A+ R_D* ( (360/pi)* (D_R*eoe)* SIN( D_R* (W*(D-2) ) ) )
+    C = (A - ATAND(TAND(B)/COSD(23.44)))/180
+    ! C is the difference between the angles moved at mean speed, and at
+    ! the corrected speed projected onto the equatorial plane, and divided
+    ! by 180 to get the difference in "half turns". The value 23.44° is
+    ! the obliquity (tilt) of the Earth's axis. The subtraction gives the
+    ! conventional sign to the equation of time. For any given value of x,
+    ! arctan x (sometimes written as tan−1 x) has multiple values,
+    ! differing from each other by integer numbers of half turns. The
+    ! value generated by a calculator or computer may not be the
+    ! appropriate one for this calculation. This may cause C to be wrong
+    ! by an integer number of half turns. The excess half turns are
+    ! removed in the next step of the calculation to give the equation of
+    ! time:
 
-
-    !C is the difference between the angles moved at mean speed, and at the
-    !corrected speed projected onto the equatorial plane, and divided by 180 to
-    !get the difference in "half turns". The subtraction gives the
-    !conventional sign to the equation of time.
-
-    C = (A - R_D* ATAN(TAN( D_R* B )/COS( D_R* tilt ) ) )/180
+    EoT = 750*(C-NINT(C))
 
     !EoT is the equation of time in minutes. Subtracting nint(C) leaves a
     !small positive or negative fractional number of half turns, which is
@@ -898,46 +889,39 @@ CONTAINS
     !takes to rotate one half turn relative to the Sun, to get the
     !equation of time.
 
-    EoT = 750*(C-NINT(C))
-
-
     ! Declination
     !
     ! The value of B in the above calculation is an accurate value for the
     ! Sun's ecliptic longitude (shifted by 90 degrees), so the solar
     ! declination becomes readily available and is accurate to within a
     ! fraction of a degree.
-    dcl = R_D* (-1._wp * ASIN(SIN(D_R* tilt)* COS(D_R* B) ))
+    dcl =-1._wp * ASIND(SIND(23.44)*COSD(B))
 
+    ! ------------
+    ! Local solar time 
+    ! add correction to local solar time
+    
+    LST(1:ngrids) = local_solar_time(1:ngrids) + EoT/60 
 
-    WHERE (data_mask)
-       ! ------------
-       ! Local solar time 
-       ! add correction to local solar time
-       LST(1:ngrids) = local_solar_time(1:ngrids) + EoT/60 
+    ! The Hour Angle converts the local solar time (LST) into the
+    ! number of degrees which the sun moves across the sky. By
+    ! definition, the Hour Angle is 0° at solar noon (hence LST-12h).
+    ! Since the Earth rotates 15° per hour, each hour away
+    ! from solar noon corresponds to an angular motion of the sun in
+    ! the sky of 15°. In the morning the hour angle is negative, in
+    ! the afternoon the hour angle is positive.
+    H(1:ngrids) = 15*(LST(1:ngrids)-12);
 
-       !The Hour Angle converts the local solar time (LST) into the number of
-       !degrees which the sun moves across the sky. By definition, the Hour Angle
-       !is 0° at solar noon. Since the Earth rotates 15° per hour, each hour away
-       !from solar noon corresponds to an angular motion of the sun in the sky of
-       !15°. In the morning the hour angle is negative, in the afternoon the hour
-       !angle is positive.
-       H(1:ngrids) = 15*(LST(1:ngrids)-12);
+    !% Solar Zenith Angle
+    !
+    ! The solar zenith angle, sza is estimated using results from spherical
+    ! trigonometry. (from http://en.wikipedia.org/wiki/Solar_zenith_angle)
 
-       !% Solar Zenith Angle
-       !
-       ! The solar zenith angle, sza is estimated using results from spherical
-       ! trigonometry. (from http://en.wikipedia.org/wiki/Solar_zenith_angle)
-    END WHERE
-    WHERE (data_mask)
-
-       solar_zenith_angle(1:ngrids) = &
-            R_D* ACOS(&
-            SIN(D_R* lat(1:ngrids))*SIN(D_R* dcl)+&
-            COS(D_R* lat(1:ngrids))*COS(D_R* dcl)*&
-            COS(D_R*   H(1:ngrids))&
-            )
-    END WHERE
+    solar_zenith_angle(1:ngrids) = &
+         ACOSD(&
+         SIND(lat(1:ngrids))*SIND(dcl)+&
+         COSD(lat(1:ngrids))*COSD(dcl)*COSD(H(1:ngrids))&
+         )
 
   END FUNCTION SOLAR_ZENITH_ANGLE
 
@@ -1088,7 +1072,6 @@ CONTAINS
     DO d1 = 1,ngrids
        DO inl = nlev,2,-1
 
-          !IF (sub%data_mask(d1,inl)) CYCLE
           IF ( sub%Tcorr(d1,inl) .GE. sub%Tcorr(d1,inl+1) ) THEN
              ! 
              ! You are in an inversion
