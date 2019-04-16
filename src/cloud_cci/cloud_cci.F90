@@ -107,7 +107,7 @@ PROGRAM CLOUD_CCI_SIMULATOR
   REAL(wp),PARAMETER                   :: rho_w = 1._wp!      [10^3 kg/m^3]
   REAL(wp),PARAMETER                   :: rho_i = 0.93_wp !   [10^3 kg/m^3]
   REAL(wp),PARAMETER, DIMENSION(2)     :: rho = [rho_w,rho_i]
-  REAL(wp),ALLOCATABLE,DIMENSION(:)    :: LST,solzen,TOD
+  REAL(wp),ALLOCATABLE,DIMENSION(:)    :: LST,TOD
   REAL(wp),ALLOCATABLE,DIMENSION(:,:)  :: frac_out2
   REAL(wp),ALLOCATABLE,DIMENSION(:,:,:):: frac_out
 
@@ -184,13 +184,11 @@ PROGRAM CLOUD_CCI_SIMULATOR
   ALLOCATE(frac_out(ngrids,nc,nlev   ),&
        frac_out2   (       nc,nlev   ),&
        LST         (ngrids           ),&
-       solzen      (ngrids           ),&
        TOD         (ngrids           ))
        
   frac_out= missing
   frac_out2= missing
   LST     = missing
-  solzen  = missing
   TOD     = missing
 
   CALL ALLOCATE_MODEL_MATRIX(model,ngrids,nlev)
@@ -326,8 +324,6 @@ PROGRAM CLOUD_CCI_SIMULATOR
            ! empty internal
            CALL INITIALISE_INTERNAL_SIMULATOR(inter,nc,nlev,options)
 
-           solzen(d1) = sub%solzen(d1) ! need this here
-
            frac_out2=frac_out(d1,:,:)
 
            CALL GET_CLOUD_MICROPHYSICS(d1,nc,nlev,frac_out2,&
@@ -406,7 +402,6 @@ PROGRAM CLOUD_CCI_SIMULATOR
         
      END DO  ! itime
 
-     sub%solzen=solzen
      IF (need2Average) THEN
         ! I need to save the sum and number of elements for all
         ! variables and empty them after each time step
@@ -435,7 +430,7 @@ PROGRAM CLOUD_CCI_SIMULATOR
   CALL DEALLOCATE_OPTICS(options%sim_aux%LUT)
   CALL DEALLOCATE_CLOUD_CCI(cloud_cci)
 
-  DEALLOCATE (frac_out,frac_out2,LST,solzen,TOD)
+  DEALLOCATE (frac_out,frac_out2,LST,TOD)
 
   PRINT *,"Finished !!!"
 CONTAINS
