@@ -28,7 +28,7 @@
 !
 ! History:
 ! May 2015- D. Swales - Original version
-! copied by salomon.eliasson@smhi.se 7/1-2019
+! 
 ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 MODULE mod_rng
   USE cosp_kinds, ONLY: dp, sp, wp 

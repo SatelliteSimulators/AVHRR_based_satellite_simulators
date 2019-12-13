@@ -28,7 +28,6 @@
 !
 ! History
 ! May 2015 - D. Swales - Modified for COSPv2.0
-! copied by salomon.eliasson@smhi.se 7/1-2019
 ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 module mod_scops
   USE COSP_KINDS,     ONLY: wp
