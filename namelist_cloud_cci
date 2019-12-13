@@ -67,12 +67,6 @@
 ! --- cloud Microphysics ----------
 ! cf_method          : Technique to determine cloud fraction. 
 !                      0 = global constant (tau_min)
-!                      1 = global gridded tau constants (makes 'tau_min' obselete).
-!                      2 = probability of detection based on optical depth bins separated by day and night values
-!                      3 = probability of detection based on optical depth bins (based on day and night)
-!
-! tau_equivRadCldTop : Optical depth at the radiative equivalent cloud top
-!                      (for MODIS approach)
 !
 ! tau_min            : Minimum optical depth threshold for AVHRR
 ! ----- Available variables -----
@@ -104,27 +98,27 @@
 !
 ! ---------------------------
 &epoch
-year  =    2008,
-month =    12,
+year  =    1982,
+month =    1,
 day1  =    1,
 day2  =    1,
 /
 &paths
 model_name         = "ec_earth",
-model_input_regexp = "/nobackup/smhid13/sm_salel/data/model/#MODEL/SA07/#Y4/SA07ml+#Y4#M2.nc",
-sim_output_regexp  = "/nobackup/smhid13/sm_salel/satellite_simulations/cloud_cci/ec_earth/SA07/2008/12/cloud_cci_ec_earth_SA07_200812#D2_noaa18.nc", 
+model_input_regexp = "/modelinput_dir/ec_earth/1982/model198201.nc",
+sim_output_regexp  = "/output/1982/01/cloud_cci_ec_earth_198201#D2_noaa7.nc", 
 data_dir           = "data/",    
 dailyFiles         = .FALSE.,
 /
 &other
-dbg                = 1,     
+dbg                = 0,     
 subsampler         = 0,      
-overwrite_existing = .FALSE,
+overwrite_existing = .FALSE.,
 use_satellite      = .TRUE.,
 /
 &satellite
 id_platform   = 1,
-id_satellite  = 18,
+id_satellite  = 7,
 node          = "all",
 doL2bSampling = .TRUE.,
 interpolate   = .TRUE.,
@@ -140,7 +134,6 @@ pbin_edges = 1,90,180,245,310,375,440,500,560,620,680,740,800,875,950,1100,
 /
 &cloudMicrophys
 cf_method          = 0,
-tau_equivRadCldTop = 1,
 tau_min            = 0.2,
 /
 &variables2run
@@ -155,6 +148,7 @@ cot              = .TRUE.,
 cth              = .TRUE.,
 ctp              = .TRUE.,
 ctp_log          = .TRUE.,
+ctt              = .TRUE.,
 hist2d_cot_ctp   = .TRUE.,
 iwp              = .TRUE.,
 lwp              = .TRUE.,
