@@ -133,7 +133,7 @@ MODULE namelist_input
      LOGICAL :: doRTTOV
      LOGICAL :: doModel
 
-     !    ! number of frequencies
+     !    ! number of frequencies (only for RTTOV)
      INTEGER :: nchannels, sensor
      INTEGER, ALLOCATABLE :: channels(:)
 

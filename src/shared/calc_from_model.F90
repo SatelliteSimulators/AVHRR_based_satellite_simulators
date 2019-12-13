@@ -258,8 +258,7 @@ CONTAINS
             EXP( -(S%ltau(1:ngrids,1:nlev)/2.56+S%itau(1:ngrids,1:nlev)/2.13) )
     END IF
 
-    IF ( (options%sim%doRTTOV).OR.&
-         (options%sim%doClara.AND.options%sim%Tb .EQ. 1)) THEN
+    IF (options%sim%doRTTOV) THEN
        ! ---------------------------------------
        ! Also need the layer averages for RTTOV
        ! ---------------------------------------

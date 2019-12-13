@@ -456,13 +456,13 @@ CONTAINS
           END WHERE
        END DO
        ! reclassify the cloudy columns to semi-transparent if the optical
-       ! depth is less than 5 (I should be using RTTOV channel
+       ! depth is less than opaque (I should be using RTTOV channel
        ! differences for CLARA)
 
        WHERE(inter%tau.EQ.0)
           cflag=0
        END WHERE
-       WHERE((cflag.EQ.3).AND.(inter%tau.LT.3))
+       WHERE((cflag.EQ.3).AND.(inter%tau.LT.opaque))
           cflag=2
        END WHERE
     CASE(3)
@@ -482,7 +482,7 @@ CONTAINS
        WHERE(inter%tau.EQ.0)
           cflag=0
        END WHERE
-       WHERE((cflag.EQ.3).AND.(inter%tau.LT.3))
+       WHERE((cflag.EQ.3).AND.(inter%tau.LT.opaque))
           cflag=2
        END WHERE
 

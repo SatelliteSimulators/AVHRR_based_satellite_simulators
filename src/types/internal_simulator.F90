@@ -34,8 +34,7 @@ MODULE INTERNAL_SIMULATOR
   ! 'tau'         = simulated ice+liquid cloud optical depth for each sub gri
   ! 'tau_profile' = vertical profile of optical depth with cloud
   !                 fraction from scops.f applied
-  ! 'Tb'          = Brightness temperature from RTTOV
-  ! 'Tb_cld_CDK'  = Tb using the CDK approach
+  ! 'Tb'          = Brightness temperature
 
   TYPE internal_clara
      INTEGER, ALLOCATABLE, DIMENSION(:)     :: flagged
@@ -62,8 +61,8 @@ MODULE INTERNAL_SIMULATOR
      REAL(wp), ALLOCATABLE, DIMENSION(:)    :: reff
      REAL(wp), ALLOCATABLE, DIMENSION(:)    :: tau
      REAL(wp), ALLOCATABLE, DIMENSION(:,:)  :: tau_profile
-     REAL(wp), ALLOCATABLE, DIMENSION(:,:)  :: Tb
-     REAL(wp), ALLOCATABLE, DIMENSION(:)    :: Tb_cld_CDK
+     REAL(wp), ALLOCATABLE, DIMENSION(:)    :: Tb
+     REAL(wp), ALLOCATABLE, DIMENSION(:,:)  :: Tb_rttov
      TYPE(internal_clara)                   :: clara
      TYPE(internal_cloud_cci)               :: cloud_cci
   END TYPE internal
@@ -97,12 +96,7 @@ CONTAINS
 
     IF (options%sim%doClara) THEN
        ALLOCATE(inter%clara%flagged(ncol),&
-            inter%Tb_cld_CDK       (ncol),&
-            inter%Tb               (ncol,  nchan  ))
-       IF (options%sim%Tb.EQ.1) THEN
-          ALLOCATE(inter%cfrac     (ncol,  nlev-1),&
-               inter%cloud         (ncol,6,nlev-1))
-       END IF
+            inter%Tb               (ncol))
     ELSEIF (options%sim%doCloud_cci) THEN
        ALLOCATE( inter%cloud_cci%albedoIsDefined (ncol),&
                  inter%cloud_cci%cla_vis006      (ncol),&
@@ -112,7 +106,7 @@ CONTAINS
     ELSEIF (options%sim%doRTTOV) THEN
        ALLOCATE( inter%cfrac         (ncol,  nlev-1),&
                  inter%cloud         (ncol,6,nlev-1),&
-                 inter%Tb            (ncol,  nchan  ))
+                 inter%Tb_rttov      (ncol,  nchan  ))
     END IF
   END SUBROUTINE ALLOCATE_INTERNAL_SIMULATOR
   SUBROUTINE INITIALISE_INTERNAL_SIMULATOR(inter,ncol,nlev,options)
@@ -139,12 +133,7 @@ CONTAINS
 
     IF (options%sim%doClara) THEN
        inter%clara%flagged (1:ncol) = 0
-       inter%Tb_cld_CDK    (1:ncol) = -999._wp
-       IF (options%sim%Tb.EQ.1) THEN
-          inter%cfrac (1:ncol,    1:nlev-1) = -999._wp
-          inter%cloud (1:ncol,1:6,1:nlev-1) = -999._wp
-          inter%Tb    (1:ncol,    1:nchan ) = -999._wp
-       END IF
+       inter%Tb            (1:ncol) = -999._wp
     ELSEIF (options%sim%doCloud_cci) THEN
        inter%cloud_cci%albedoIsDefined(1:ncol) = .FALSE.
        inter%cloud_cci%cla_vis006     (1:ncol) = -999._wp
@@ -152,9 +141,9 @@ CONTAINS
        inter%cloud_cci%ctp_c          (1:ncol) = -999._wp
        inter%cloud_cci%ctt_c          (1:ncol) = -999._wp
     ELSEIF (options%sim%doRTTOV) THEN
-       inter%cfrac (1:ncol,    1:nlev-1) = -999._wp
-       inter%cloud (1:ncol,1:6,1:nlev-1) = -999._wp
-       inter%Tb    (1:ncol,    1:nchan ) = -999._wp
+       inter%cfrac   (1:ncol,    1:nlev-1) = -999._wp
+       inter%cloud   (1:ncol,1:6,1:nlev-1) = -999._wp
+       inter%Tb_rttov(1:ncol,    1:nchan ) = -999._wp
     END IF
 
   END SUBROUTINE INITIALISE_INTERNAL_SIMULATOR
@@ -177,12 +166,7 @@ CONTAINS
 
     IF (options%sim%doClara) THEN
        DEALLOCATE(inter%clara%flagged,&
-            inter%Tb_cld_CDK         ,&
             inter%Tb)
-       IF (options%sim%Tb.EQ.1) THEN
-          DEALLOCATE(inter%cfrac,&
-               inter%cloud) 
-       END IF
     ELSEIF (options%sim%doCloud_cci) THEN
        DEALLOCATE(inter%cloud_cci%albedoIsDefined,&
                  inter%cloud_cci%cla_vis006      ,&
@@ -192,7 +176,7 @@ CONTAINS
     ELSEIF (options%sim%doRTTOV) THEN
        DEALLOCATE(inter%cfrac,&
                  inter%cloud ,&
-                 inter%Tb     )
+                 inter%Tb_rttov)
     END IF
 
   END SUBROUTINE deallocate_internal_simulator
