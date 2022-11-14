@@ -98,11 +98,13 @@ year  =    1982,
 month =    1,
 day1  =    1,
 day2  =    1,
+CDR   =    clara_a3,
 /
+
 &paths
 model_name         = "ec_earth",
 model_input_regexp = "/modelinput_dir/ec_earth/1982/model198201.nc",
-sim_output_regexp  = "/output/1982/01/clara_ec_earth_198201#D2_noaa7.nc", 
+sim_output_regexp  = "/output/#Y4/#M2/#CDR_#MODEL_#Y4#M2#D2_#SAT.nc", 
 data_dir           = "data/",    
 dailyFiles         = .FALSE.,
 /
@@ -113,12 +115,11 @@ overwrite_existing = .FALSE.,
 use_satellite      = .TRUE.,
 /
 &satellite
-id_platform   = 1,
-id_satellite  = 7,
-node          = "all",
-doL2bSampling = .TRUE.,
-interpolate   = .TRUE.,
-local_time    = -9,
+satellite          = noaa7;
+node               = "all",
+doL2bSampling      = .TRUE.,
+interpolate        = .TRUE.,
+local_time         = -9,
 /
 &daynight
 daylim   = 84,

@@ -1,5 +1,5 @@
-# CLARA-A2
-# satellite product simulator for the CLARA-A2 CDR
+# CLARA
+# satellite product simulator for the CLARA-A2 and CLARA-A3 CDRs
 #
 # 16/12-2019
 
@@ -8,7 +8,7 @@ Salomon.Eliasson@smhi.se
 
 ABOUT:
 
-This code is the simulates the CLARA-A2 CDR cloud products
+This code simulates the CLARA-A2 or CLARA-A3 CDR cloud products
 (https://wui.cmsaf.eu (last access: 30 July 2019)) based on a model atmosphere.
 The simulator is described in (https://doi.org/10.5194/gmd-2019-174)
 
@@ -20,7 +20,7 @@ NOTE:
 (daily or monthly files have been tested) and writes daily
 output files
 
-*) The CLARA-A2 product simulator is aimed to be included in the COSP
+*) The CLARA product simulator is aimed to be included in the COSP
 in the near future. See https://doi.org/10.1175/2011BAMS2856.1 and
 https://doi.org/10.5194/gmd-2017-148. Several subroutines from the
 original COSP repository are used for compatibility.
