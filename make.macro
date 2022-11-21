@@ -1,15 +1,10 @@
-# Set this somewhere. 
+# Set this somewhere.
+# module add netCDF/4.8.1-HDF5-1.12.1-nsc1-intel-2018a-eb
+# module add buildenv-intel/2019.u1-bare
 # e.g., $NETCDF_DIR = /software/apps/netcdf/4.3.2/i1402-hdf5-1.8.14
+
 NETCDF_INC = -I$(NETCDF_DIR)/include 
 NETCDF_LIB = -L$(NETCDF_DIR)/lib -lnetcdf -lnetcdff 
-
-RTTOV_DIR  = $(HOME)/RT/rttov/rttov_12.2
-RTTOV_INC  = -I$(RTTOV_DIR)/include
-RTTOV_MOD  = -I$(RTTOV_DIR)/mod
-RTTOV = $(RTTOV_INC) $(RTTOV_MOD)
-
-RTTOV_LIB  = -L$(RTTOV_DIR)/lib \
--lrttov12_coef_io -lrttov12_coef_io_11 -lrttov12_main -lrttov12_mw_scatt -lrttov12_mw_scatt_coef -lrttov12_other -lrttov12_parallel
 
 ifeq ($(ARCH),gfortran)
      MOD=-Jmod/
@@ -19,9 +14,6 @@ ifeq ($(ARCH),gfortran)
           OPTIONS= -O0 -g -Wall -Wsurprising -ffpe-trap='invalid','zero','overflow' -fcheck='all' -fmax-errors=10
      else ifeq ($(DEBUG),no) #no optimisation
      	  OPTIONS=-O0 -g
-     else
-          # for backward compatibility with last version
-          OPTIONS= -O0 -g -Wall -Wsurprising -ffpe-trap='invalid','zero','overflow' -fcheck='all' -fmax-errors=10
      endif
 else
      ARCH=ifort
@@ -33,9 +25,6 @@ else
 	      OPTIONS= -O0 -g -traceback -C -check all -fpe0 -warn -warn interface -debug extended -debug inline_debug_info
      else ifeq ($(DEBUG),no) #no optimisation
      	  OPTIONS=-O0 -g
-     else
-          # for backward compatibility with last version
-	      OPTIONS= -O0 -g -traceback -C -check all -fpe0 -warn -warn interface -debug extended -debug inline_debug_info
      endif
 endif
 
