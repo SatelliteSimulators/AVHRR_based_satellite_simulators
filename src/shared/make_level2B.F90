@@ -138,8 +138,7 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
      fullday(i)%aux%netcdf_file=TRIM(file)
      CALL READ_MODEL(fullday(i),tmpItime,options,0)
   END DO
-
-
+  
   IF (interpolate) THEN
 
      tmpItime=tmpItime+1
@@ -442,7 +441,5 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
   DEALLOCATE(fullday)
   !
   !--------------------
-
-  PRINT *,"---------- sampled model data for one day"
 
 END SUBROUTINE MAKE_LEVEL2B

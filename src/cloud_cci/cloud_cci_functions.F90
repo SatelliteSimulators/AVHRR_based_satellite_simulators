@@ -642,8 +642,8 @@ CONTAINS
     inversion(1:nlev) = -999
 
     DO inl = nlev,1,-1
-       IF (S%inversion_layers(d1,inl) .GT. 0) THEN
-          inversion(inv_ind) = S%inversion_layers(d1,inl)
+       IF (S%inv_layers(d1,inl) .GT. 0) THEN
+          inversion(inv_ind) = S%inv_layers(d1,inl)
           inv_ind = inv_ind+1
        END IF
     END DO
@@ -699,7 +699,7 @@ CONTAINS
          "tau","scops","WHERE","Explanation" 
     PRINT *, ""
     WRITE(str,'(a,I2,a)') "(a,",inv_ind-1,"(I2,1x))"
-    PRINT TRIM(str),"Inversion_layers = ",(S%inversion_layers(d1,ii),ii=1,inv_ind-1)
+    PRINT TRIM(str),"inv_layers = ",(S%inv_layers(d1,ii),ii=1,inv_ind-1)
   END SUBROUTINE CHECK_PROFILES
 
   FUNCTION ALBEDO(Grid,GZero) RESULT(cloud_cci_albedo)
@@ -864,12 +864,12 @@ CONTAINS
             "' is not in the list"
     END SELECT
 
-    WRITE(pathLUT,'(a,"microphysics/Cloud_cci/cloud_albedo/AVHRR-",a,"_",a3,"_RD_Ch1.sad.txt")') &
-         TRIM(options%paths%data_dir),&
+    WRITE(pathLUT, &
+         '("data/microphysics/Cloud_cci/cloud_albedo/AVHRR-",a,"_",a3,"_RD_Ch1.sad.txt")') &
          TRIM(sat), &
          phase
 
-    WRITE(dir,'(a,a)') TRIM(options%paths%data_dir),"microphysics/Cloud_cci/cloud_albedo/"
+    WRITE(dir,'(a)') "data/microphysics/Cloud_cci/cloud_albedo/"
     pathLUT = BUILD_FILENAME(dir=dir,&
          formstr='#DS-#SAT_#STRING_RD_Ch1.sad.txt',&
          dataset='AVHRR',sat=sat,string=phase)

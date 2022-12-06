@@ -17,38 +17,31 @@ MODULE handy
 CONTAINS
 
   FUNCTION build_filename(formstr,&
-       y,m,d,utc,&
-       dir,model,sim,dataset,&
-       sat,node,version,string,check) &
+       y,m,d,utc,dataset,&
+       dir,model,CDR,&
+       sat,node,version,string) &
        RESULT(file)
 
-    ! INPUT: 'formstr' should contaimn the fullpath regexp if dir is not provided
+    ! INPUT: 'formstr' should contain the fullpath regexp if dir is not provided
 
     IMPLICIT NONE
 
     CHARACTER(*), INTENT(in)           :: formstr 
-    CHARACTER(*), INTENT(in), OPTIONAL :: dir,model,sim,dataset
-    CHARACTER(*), INTENT(in), OPTIONAL :: sat,version
+    CHARACTER(*), INTENT(in), OPTIONAL :: dir,model,CDR
+    CHARACTER(*), INTENT(in), OPTIONAL :: sat,version,dataset
     CHARACTER(*),INTENT(in),OPTIONAL   :: node, string
     INTEGER, INTENT(in),OPTIONAL       :: y,m,d,utc ! year
     CHARACTER(LEN(formstr)+1000)       :: file
-    LOGICAL, OPTIONAL :: check
     CHARACTER(4) :: s4
     CHARACTER(2) :: s2
     CHARACTER(1) :: s1
-    LOGICAL   :: exists,kolla
-    exists=.FALSE.
 
-    IF (.NOT.PRESENT(check)) THEN
-       kolla=.FALSE.
-    ELSE
-       kolla=check
-    END IF
     ! --------
     ! FILE NAME
     !
     ! wildcards (all optional):
-    ! #SIM='sim'                  
+    ! #CDR='clara-a3, or clara-a2 or cloud_cci'                  
+    ! #DS='AVHRR'
     ! #MODEL= options%model (A)   
     ! #Y4 = year  (i4)            
     ! #M2 = month (i2)            
@@ -62,8 +55,8 @@ CONTAINS
     ! #STRING = string            
     !
     file=formstr
-    IF (TALLY(file,'#SIM').GT.0) THEN
-       file=Replace_Text (file,'#SIM',trim(sim))
+    IF (TALLY(file,'#CDR').GT.0) THEN
+       file=Replace_Text (file,'#CDR',trim(CDR))
     END IF
     IF (TALLY(file,'#DS').GT.0) THEN
        file=Replace_Text (file,'#DS',trim(dataset))
@@ -117,12 +110,6 @@ CONTAINS
     ENDIF
     IF (PRESENT(dir)) THEN
        file=TRIM(dir)//TRIM(file)
-    END IF
-    IF (kolla) THEN
-       IF (.NOT.CHECK_FILE(TRIM(file))) THEN
-          STOP "stopped in build_filename() in model_input.F90"
-       END IF
-       PRINT '("File:",A)',TRIM(file)
     END IF
   END FUNCTION build_filename
 

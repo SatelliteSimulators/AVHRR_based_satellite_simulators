@@ -41,11 +41,15 @@ MODULE from_COSP2
   ! Salomon.Eliasson@smhi.se
 
   USE COSP_KINDS,      ONLY: wp
-  USE optics_m,        ONLY: &
-       num_trial_res,        &
+  USE OPTICS_m,        ONLY: &
        optics_LUT,           &
-       cloud_phase
-
+       cloud_phase,          &
+       polyfit,              &
+       effective_radius,     &
+       num_trial_res,        &
+       small_liq,            &
+       small_ice
+       
   IMPLICIT NONE
 
   PUBLIC :: adding_doubling,    &
@@ -57,7 +61,6 @@ MODULE from_COSP2
        two_stream,              &
        two_stream_reflectance
 
-  !  INTEGER, PARAMETER ::               num_trial_res = 20,     & ! Increase to make the linear pseudo-retrieval of size 
   INTEGER, PARAMETER ::    phaseIsLiquid = 1,      & !
        phaseIsIce    = 2         !
 
@@ -68,46 +71,45 @@ CONTAINS
   ! #######################################################
   ! Make trial datasets of g and ssa
   ! #######################################################
-  SUBROUTINE trial_g_and_w0(r_eff,is_ch3B)
+  SUBROUTINE trial_g_and_w0(LUT)
 
     IMPLICIT NONE
 
     !EvMb
     INTEGER                         :: i
     !EvMe
-    LOGICAL, INTENT(in)             :: is_ch3B ! if ch3B was on (else ch3a was on)
-    TYPE(optics_LUT), INTENT(inout) :: r_eff
+    TYPE(optics_LUT), INTENT(inout) :: LUT
 
     REAL(wp), DIMENSION(num_trial_res) :: trial_re_w, trial_re_i
 
-    trial_re_w = r_eff%water%optics%re%trial
-    trial_re_i = r_eff%ice%optics%re%trial
+    trial_re_w = LUT%water%optics%re%trial
+    trial_re_i = LUT%ice%optics%re%trial
 
     ! Water
     !EvMb ... next four modifications needed to overcome a bug in the gfortran compiler installed at KNMI 
     !   r_eff%water%optics%g0(1:num_trial_res) = get_g_nir(trial_re_w(1:num_trial_res),&
     !        r_eff%water,is_ch3B)
     do i=1,num_trial_res
-       r_eff%water%optics%g0(i) = get_g_nir(trial_re_w(i),r_eff%water,is_ch3B)
+       LUT%water%optics%g0(i) = get_g_nir(trial_re_w(i),LUT%water,phaseIsLiquid)
     enddo
 
     !   r_eff%water%optics%w0(1:num_trial_res) = get_ssa_nir(trial_re_w(1:num_trial_res),&
     !        r_eff%water,is_ch3B)
     do i=1,num_trial_res
-       r_eff%water%optics%w0(i) = get_ssa_nir(trial_re_w(i),r_eff%water,is_ch3B)
+       LUT%water%optics%w0(i) = get_ssa_nir(trial_re_w(i),LUT%water,phaseIsLiquid)
     enddo
 
     ! Ice
     !   r_eff%ice%optics%g0(1:num_trial_res)   = get_g_nir(trial_re_i(1:num_trial_res),&
     !         r_eff%ice,is_ch3B)
     do i=1,num_trial_res
-       r_eff%ice%optics%g0(i)   = get_g_nir(trial_re_i(i),r_eff%ice,is_ch3B)
+       LUT%ice%optics%g0(i)   = get_g_nir(trial_re_i(i),LUT%ice,phaseIsIce)
     enddo
 
     !   r_eff%ice%optics%w0(1:num_trial_res)   = get_ssa_nir(trial_re_i(1:num_trial_res),&
     !        r_eff%ice,is_ch3B)
     do i=1,num_trial_res
-       r_eff%ice%optics%w0(i)   = get_ssa_nir(trial_re_i(i),r_eff%ice,is_ch3B)
+       LUT%ice%optics%w0(i)   = get_ssa_nir(trial_re_i(i),LUT%ice,phaseIsIce)
     enddo
     !EvMe
 
@@ -117,105 +119,144 @@ CONTAINS
   ! FUNCTION get_g_nir
   ! Compute asymmetry parameter using provided radius and phase.
   ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  ELEMENTAL FUNCTION get_g_nir(re_trial,phase,is_ch3B)
-    ! INPUTS
-    TYPE(cloud_phase), INTENT(in) :: phase
-    LOGICAL, INTENT(in) :: is_ch3b
+  ELEMENTAL FUNCTION get_g_nir(re,cloud,phase)
 
-    ! Outputs
+    !
+    ! Polynomial fit for asummetry parameter, g, in CLARA channel 3B as a function 
+    ! of size for ice and water. Fits based on FIXME- KNMI CLARA, RAL Cloud_cci
+    !
+
+    ! IN
+    REAL(wp),INTENT(in)           :: re
+    TYPE(cloud_phase), INTENT(in) :: cloud
+    INTEGER, INTENT(in)           :: phase
+    
+    ! OUT
     REAL(wp) :: get_g_nir
 
-    ! Local variables
-    REAL(wp),INTENT(in) :: re_trial
-    INTEGER  :: xi(2)
-    INTEGER  :: nRe
-    REAL(wp), ALLOCATABLE :: g0(:), re(:)
-    REAL(wp) :: re_max,re_min
-
-    ! list of trial effective radius's
-    re_max    = phase%optics%re%max
-    re_min    = phase%optics%re%min
-    nRe       = phase%optics%re%nRe
-
-    ALLOCATE(re(nRe))
-    ALLOCATE(g0(nRe))
-    re        = phase%optics%re%re
-    IF (is_ch3B) THEN
-       g0(1:nRe) = phase%optics%re%g0_37(1:nRe)
+    ! internal
+    TYPE(polyfit)          :: fit ! Coefficients for best polynomial fits for g0 and w0
+    TYPE(effective_radius) :: reff
+    INTEGER                :: small
+    REAL(wp)               :: effective_radius
+    
+    reff=cloud%optics%re
+    fit=reff%fit
+    
+    ! Keep effective radius within limits of the table
+    effective_radius = MINVAL( (/MAXVAL( (/reff%min,re/)),reff%max/) )
+   
+    IF (phase == phaseIsLiquid) THEN
+       small=small_liq
     ELSE
-       g0(1:nRe) = phase%optics%re%g0_16(1:nRe)
+       small=small_ice
     END IF
-
-    ! Find interpolation bounds works for either cloud phase or wavelength
-    xi = [MAXLOC(re-re_trial,re-re_trial .LE. 0),MAXLOC(re-re_trial,re-re_trial .LE. 0)+1]
-    IF (MINVAL(ABS(re-re_trial)) .EQ. 0) xi=[xi(1),xi(1)]
-    ! Interpolate
-    IF (re_trial .GT. re_min .AND. re_trial .LT. re_max) THEN
-       get_g_nir = g0(xi(1))+(g0(xi(2))-g0(xi(1)))*(re_trial-re(xi(1)))/    &
-            (re(xi(2))-re(xi(1))) 
-    ENDIF
-    IF (xi(1) .EQ. xi(2)) get_g_nir = g0(xi(1))       ! On table node
-    IF (re_trial .LT. re_min)  get_g_nir = g0(1)      ! Re too small
-    IF (re_trial .GT. re_max)  get_g_nir = g0(nRe) ! Re too big
-
-    DEALLOCATE(re)
-    DEALLOCATE(g0)
+       
+    IF(effective_radius < small) THEN
+       IF     (SIZE(fit%g0_small) .EQ. 3) THEN
+          get_g_nir = fit_to_2D(effective_radius, fit%g0_small)
+       ELSEIF (SIZE(fit%g0_small) .EQ. 4) THEN
+          get_g_nir = fit_to_3D(effective_radius, fit%g0_small)
+       ELSEIF (SIZE(fit%g0_small) .EQ. 5) THEN
+          get_g_nir = fit_to_4D(effective_radius, fit%g0_small)
+       END IF
+    ELSE
+       IF     (SIZE(fit%g0_large) .EQ. 3) THEN
+          get_g_nir = fit_to_2D(effective_radius, fit%g0_large)
+       ELSEIF (SIZE(fit%g0_large) .EQ. 4) THEN
+          get_g_nir = fit_to_3D(effective_radius, fit%g0_large)
+       ELSEIF (SIZE(fit%g0_large) .EQ. 5) THEN
+          get_g_nir = fit_to_4D(effective_radius, fit%g0_large)
+       END IF
+    END IF
 
   END FUNCTION get_g_nir
-  ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  ! END FUNCTION get_g_nir
-  ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
   ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  ! FUNCTION get_ssa_nirnir
+  ! FUNCTION get_ssa_nir
   ! Compute single-scattering albedo for provided radius and phase.
   ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  ELEMENTAL FUNCTION get_ssa_nir(re_trial,phase,is_ch3B)
 
-    ! INPUTS
-    TYPE(cloud_phase), INTENT(in) :: phase
-    LOGICAL, INTENT(in) :: is_ch3b
+  ELEMENTAL FUNCTION get_ssa_nir (re,cloud,phase)
+    
+    TYPE(cloud_phase), INTENT(in) :: cloud
+    REAL(wp),INTENT(in)              :: re
+    INTEGER, INTENT(in)              :: phase
+    
+    ! OUT
+    REAL(wp) :: get_ssa_nir
 
-    ! Outputs
-    real(wp) :: get_ssa_nir
-
-    ! Local variables
-    REAL(wp),INTENT(in) :: re_trial
-    INTEGER  :: xi(2)
-    INTEGER  :: nRe
-    REAL(wp), ALLOCATABLE :: w0(:), re(:)
-    REAL(wp) :: re_max,re_min
-
-    ! list of trial effective radius's
-    re_max    = phase%optics%re%max
-    re_min    = phase%optics%re%min
-    nRe       = phase%optics%re%nRe
-    ALLOCATE(re(nRe))
-    ALLOCATE(w0(nRe))
-    re        = phase%optics%re%re
-    IF (is_ch3B) THEN
-       w0(1:nRe) = phase%optics%re%w0_37(1:nRe)
+    ! internal
+    TYPE(polyfit)          :: fit ! Coefficients for best polynomial fits for g0 and w0
+    TYPE(effective_radius) :: reff
+    INTEGER                :: small
+    REAL(wp)               :: effective_radius
+    
+    reff=cloud%optics%re
+    fit=reff%fit
+    
+    ! Keep effective radius within limits of the table
+    effective_radius = MINVAL( (/MAXVAL( (/reff%min,re/)),reff%max/) )
+    
+    IF (phase == phaseIsLiquid) THEN
+       small=small_liq
     ELSE
-       w0(1:nRe) = phase%optics%re%w0_16(1:nRe)
+       small=small_ice
     END IF
-
-    ! Find interpolation bounds works for either cloud phase or wavelength
-    xi = [MAXLOC(re-re_trial,re-re_trial .LE. 0),MAXLOC(re-re_trial,re-re_trial .LE. 0)+1]
-    IF (MINVAL(ABS(re-re_trial)) .EQ. 0) xi=[xi(1),xi(1)]
-    ! Interpolate
-    IF (re_trial .GT. re_min .AND. re_trial .LT. re_max) THEN
-       get_ssa_nir = w0(xi(1))+(w0(xi(2))-w0(xi(1)))*(re_trial-re(xi(1)))/    &
-            (re(xi(2))-re(xi(1))) 
-    ENDIF
-    IF (xi(1) .EQ. xi(2)) get_ssa_nir = w0(xi(1))      ! On table node
-    IF (re_trial .LT. re_min)  get_ssa_nir = w0(1)   ! Re too small
-    IF (re_trial .GT. re_max)  get_ssa_nir = w0(nRe) ! Re too big
-
-    DEALLOCATE(re)
-    DEALLOCATE(w0)
-
+      
+    IF (effective_radius < small) THEN
+       IF     (SIZE(fit%w0_small) .EQ. 3) THEN
+          get_ssa_nir = fit_to_2D(effective_radius, fit%w0_small)
+       ELSEIF (SIZE(fit%w0_small) .EQ. 4) THEN
+          get_ssa_nir = fit_to_3D(effective_radius, fit%w0_small)
+       ELSEIF (SIZE(fit%w0_small) .EQ. 5) THEN
+          get_ssa_nir = fit_to_4D(effective_radius, fit%w0_small)
+       END IF
+    ELSE
+       IF     (SIZE(fit%w0_large) .EQ. 3) THEN
+          get_ssa_nir = fit_to_2D(effective_radius, fit%w0_large)
+       ELSEIF (SIZE(fit%w0_large) .EQ. 4) THEN
+          get_ssa_nir = fit_to_3D(effective_radius, fit%w0_large)
+       ELSEIF (SIZE(fit%w0_large) .EQ. 5) THEN
+          get_ssa_nir = fit_to_4D(effective_radius, fit%w0_large)
+       END IF
+    END IF
+    
   END FUNCTION get_ssa_nir
 
+    ! ########################################################################################
+  PURE FUNCTION fit_to_4D(x, coeffs) 
+    ! INPUTS
+    REAL(wp),               INTENT(in) :: x
+    REAL(wp), DIMENSION(5), INTENT(in) :: coeffs
+    ! OUTPUTS
+    REAL(wp)                           :: fit_to_4D  
+    
+    fit_to_4D = coeffs(1) + x*(coeffs(2) + x*(coeffs(3) + x*(coeffs(4) + x*coeffs(5))))
+  END FUNCTION fit_to_4D
+  
+  ! ########################################################################################
+  PURE FUNCTION fit_to_3D(x, coeffs) 
+    ! INPUTS
+    REAL(wp),               INTENT(in) :: x
+    REAL(wp), DIMENSION(4), INTENT(in) :: coeffs
+    ! OUTPUTS
+    REAL(wp)                           :: fit_to_3D  
+    
+    fit_to_3D = coeffs(1) + x*(coeffs(2) + x*(coeffs(3) + x*coeffs(4)))
+  END FUNCTION fit_to_3D
+    
+  ! ########################################################################################
+  PURE FUNCTION fit_to_2D(x, coeffs) 
+    ! INPUTS
+    REAL(wp),               INTENT(in) :: x
+    REAL(wp), DIMENSION(3), INTENT(in) :: coeffs
+    ! OUTPUTS
+    REAL(wp)                           :: fit_to_2D
+    
+    fit_to_2D = coeffs(1) + x*(coeffs(2) + x*(coeffs(3)))
+  END FUNCTION fit_to_2D
+  
   ! ########################################################################################
   ! Radiative transfer
   ! ########################################################################################
@@ -474,34 +515,89 @@ CONTAINS
 
   END FUNCTION interpolate_to_min
 
-  ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  ! FUNCTION weight_by_extinction
-  ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  FUNCTION weight_by_extinction(nLevels,tauIncrement, f, tauLimit) 
-    ! INPUTS
-    integer, intent(in)                    :: nLevels
-    real(wp),intent(in),dimension(nLevels) :: tauIncrement, f
-    real(wp),intent(in)                    :: tauLimit
-    ! OUTPUTS
-    real(wp)                               :: weight_by_extinction
-    ! LOCAL VARIABLES
-    real(wp)                               :: deltaX, totalTau, totalProduct
-    integer                                :: i 
-
-    ! Find the extinction-weighted value of f(tau), assuming constant f within each layer
-    totalTau = 0._wp; totalProduct = 0._wp
-    do i = 1, size(tauIncrement)
-       if(totalTau + tauIncrement(i) > tauLimit) then 
-          deltaX       = tauLimit - totalTau
-          totalTau     = totalTau     + deltaX
-          totalProduct = totalProduct + deltaX * f(i) 
-       else
-          totalTau     = totalTau     + tauIncrement(i) 
-          totalProduct = totalProduct + tauIncrement(i) * f(i) 
-       end if
-       if(totalTau >= tauLimit) exit
-    end do
-    weight_by_extinction = totalProduct/totalTau
-  END FUNCTION weight_by_extinction
+!  ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!  ! FUNCTION weight_by_extinction
+!  ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!  FUNCTION weight_by_extinction(nLevels,tauIncrement, f, tauLimit) 
+!    ! INPUTS
+!    integer, intent(in)                    :: nLevels
+!    real(wp),intent(in),dimension(nLevels) :: tauIncrement, f
+!    real(wp),intent(in)                    :: tauLimit
+!    ! OUTPUTS
+!    real(wp)                               :: weight_by_extinction
+!    ! LOCAL VARIABLES
+!    real(wp)                               :: deltaX, totalTau, totalProduct
+!    integer                                :: i 
+!
+!    ! Find the extinction-weighted value of f(tau), assuming constant f within each layer
+!    totalTau = 0._wp; totalProduct = 0._wp
+!    do i = 1, size(tauIncrement)
+!       if(totalTau + tauIncrement(i) > tauLimit) then 
+!          deltaX       = tauLimit - totalTau
+!          totalTau     = totalTau     + deltaX
+!          totalProduct = totalProduct + deltaX * f(i) 
+!       else
+!          totalTau     = totalTau     + tauIncrement(i) 
+!          totalProduct = totalProduct + tauIncrement(i) * f(i) 
+!       end if
+!       if(totalTau >= tauLimit) exit
+!    end do
+!    weight_by_extinction = totalProduct/totalTau
+!  END FUNCTION weight_by_extinction
 
 END MODULE from_COSP2
+
+
+
+!!!!!!!!!!!!!!!!!!
+! OLD CODES
+!
+
+
+!ELEMENTAL FUNCTION get_ssa_nir(re_trial,phase,is_ch3B)
+!
+!    ! INPUTS
+!    TYPE(cloud_phase), INTENT(in) :: phase
+!    LOGICAL, INTENT(in) :: is_ch3b
+!
+!    ! Outputs
+!    real(wp) :: get_ssa_nir
+!
+!    ! Local variables
+!    REAL(wp),INTENT(in) :: re_trial
+!    INTEGER  :: xi(2)
+!    INTEGER  :: nRe
+!    REAL(wp), ALLOCATABLE :: w0(:), re(:)
+!    REAL(wp) :: re_max,re_min
+!
+!    ! list of trial effective radius's
+!    re_max    = phase%optics%re%max
+!    re_min    = phase%optics%re%min
+!    nRe       = phase%optics%re%nRe
+!    ALLOCATE(re(nRe))
+!    ALLOCATE(w0(nRe))
+!    re        = phase%optics%re%re
+!    IF (is_ch3B) THEN
+!       w0(1:nRe) = phase%optics%re%w0_37(1:nRe)
+!    ELSE
+!       w0(1:nRe) = phase%optics%re%w0_16(1:nRe)
+!    END IF
+!
+!    ! Find interpolation bounds works for either cloud phase or wavelength
+!    xi = [MAXLOC(re-re_trial,re-re_trial .LE. 0),MAXLOC(re-re_trial,re-re_trial .LE. 0)+1]
+!    IF (MINVAL(ABS(re-re_trial)) .EQ. 0) xi=[xi(1),xi(1)]
+!    ! Interpolate
+!    IF (re_trial .GT. re_min .AND. re_trial .LT. re_max) THEN
+!       get_ssa_nir = w0(xi(1))+(w0(xi(2))-w0(xi(1)))*(re_trial-re(xi(1)))/    &
+!            (re(xi(2))-re(xi(1))) 
+!    ENDIF
+!    IF (xi(1) .EQ. xi(2)) get_ssa_nir = w0(xi(1))      ! On table node
+!    IF (re_trial .LT. re_min)  get_ssa_nir = w0(1)   ! Re too small
+!    IF (re_trial .GT. re_max)  get_ssa_nir = w0(nRe) ! Re too big
+!
+!    DEALLOCATE(re)
+!    DEALLOCATE(w0)
+!
+!  END FUNCTION get_ssa_nir
+
+

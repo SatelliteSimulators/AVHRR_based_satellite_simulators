@@ -23,7 +23,7 @@ MODULE simulator_input_variables
   ! 'g'          = Combined liquid and ice asymmetry parameter
   ! 'height'     = height at model layer interfaces
   ! 'sunlit'     = 0 if nighttime, 1 if sunlit
-  ! 'inversion_layers' = levels that contain inversions (including
+  ! 'inv_layers' = levels that contain inversions (including
   !                    tropopause)
   ! 'irradiance' = Black body emission from model vertical layer
   !                temperature
@@ -62,7 +62,7 @@ MODULE simulator_input_variables
      REAL(wp),ALLOCATABLE, DIMENSION(:,:) :: g0
      REAL(wp),ALLOCATABLE, DIMENSION(:,:) :: height
      INTEGER, ALLOCATABLE, DIMENSION(:)   :: sunlit
-     INTEGER, ALLOCATABLE, DIMENSION(:,:) :: inversion_layers
+     INTEGER, ALLOCATABLE, DIMENSION(:,:) :: inv_layers
      REAL(wp),ALLOCATABLE, DIMENSION(:,:) :: irradiance
      REAL(wp),ALLOCATABLE, DIMENSION(:,:) :: ireff
      REAL(wp),ALLOCATABLE, DIMENSION(:,:) :: itau
@@ -107,7 +107,7 @@ contains
     ALLOCATE( sub%data_mask        (ngrids,nlev  ),&
          sub%height           (ngrids,nlev+1),&
          sub%sunlit           (ngrids       ),&
-         sub%inversion_layers (ngrids,nlev  ),&
+         sub%inv_layers (ngrids,nlev  ),&
          sub%ireff            (ngrids,nlev  ),&
          sub%itau             (ngrids,nlev  ),&
          sub%iwc              (ngrids,nlev-1),&
@@ -157,7 +157,7 @@ contains
     sub%data_mask       (1:ngrids,1:nlev   )= .FALSE.
     sub%height          (1:ngrids,1:nlev+1 )= 0._wp
     sub%sunlit          (1:ngrids          )= 0
-    sub%inversion_layers(1:ngrids,1:nlev   )= 0
+    sub%inv_layers(1:ngrids,1:nlev   )= 0
     sub%ireff           (1:ngrids,1:nlev   )= -999._wp
     sub%itau            (1:ngrids,1:nlev   )= 0._wp
     sub%iwc             (1:ngrids,1:nlev-1 )= 0._wp
@@ -233,7 +233,7 @@ contains
     DEALLOCATE(sub%data_mask  ,&
          sub%height           ,&
          sub%sunlit           ,&
-         sub%inversion_layers ,&
+         sub%inv_layers ,&
          sub%ireff            ,&
          sub%itau             ,&
          sub%iwc              ,&

@@ -69,8 +69,8 @@ CONTAINS
     ! Go to the auxiliary files to find the appropriate local
     ! overpass times and satellite zenith angles
 
-    WRITE(filename, '(A,"/satellite_specs/"A,"_L2b_specs.nc")')&
-         TRIM(options%paths%data_dir),TRIM(options%L2b%satellite)
+    WRITE(filename, '("data/satellite_specs/"A,"_L2b_specs.nc")')&
+         TRIM(options%L2b%satellite)
     INQUIRE(FILE=TRIM(filename), EXIST=exists)
     IF (.NOT. exists) THEN
        WRITE (*,*) "satellite specs file is missing. ", TRIM(filename)
@@ -125,9 +125,9 @@ CONTAINS
                "Probably the desired satellite didn't exist at this time"
           STOP "stopped in satellite_specs.F90"
        ELSE
-          PRINT '(A)', " ---- Subsampling the data in a level2b fashion"
+          PRINT '(A)', " --- Subsampling the data to level2b"
           PRINT '(A,1x,A,1x,A,1x,F5.2)', &
-               "Equatorial overpass time for",&
+               " --- Equatorial overpass time for",&
                TRIM(options%L2b%satellite),"=",sat%overpass
        END IF
     ELSE

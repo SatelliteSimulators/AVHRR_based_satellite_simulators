@@ -8,7 +8,8 @@ MODULE CALC_FROM_MODEL
   USE COSP_MATH_CONSTANTS,       ONLY: PI
   USE FROM_COSP2,                ONLY: &
        GET_G_NIR,                      &
-       GET_SSA_NIR
+       GET_SSA_NIR,                    &
+       phaseIsIce, phaseIsLiquid
   USE MODEL_INPUT,               ONLY: MODEL_TYPE
   USE OPTICS_M,                  ONLY: OPTICS_LUT
   USE NAMELIST_INPUT,            ONLY: NAME_LIST
@@ -26,22 +27,22 @@ MODULE CALC_FROM_MODEL
        Rv=461
 CONTAINS
 
-  SUBROUTINE CALC_MODEL_VERTICAL_PROPERTIES(ngrids,nlev,M,S,options)
+  SUBROUTINE CALC_MODEL_VERTICAL_PROPERTIES(ng,nl,M,S,options)
 
     IMPLICIT NONE
 
-    INTEGER, INTENT(in)          :: ngrids,nlev
+    INTEGER, INTENT(in)          :: ng,nl
     TYPE(model_type), INTENT(in) :: M
     TYPE(subset), INTENT(inout)  :: S
     TYPE(name_list), INTENT(in)  :: options
 
-    REAL(wp), DIMENSION(ngrids,nlev)  :: hyam_mat,hybm_mat
-    REAL(wp), DIMENSION(ngrids,nlev+1):: hyai_mat,hybi_mat
-    REAL(wp), DIMENSION(ngrids,nlev)  :: Tv                   ! virtual temperature
-    REAL(wp), DIMENSION(ngrids,nlev)  :: CIWC_gm3, CLWC_gm3   ! kg/kg->g/m3
-    REAL(wp), DIMENSION(ngrids,nlev)  :: DGEOZ                ! layer width (geopot) [m]
-    REAL(wp), DIMENSION(ngrids,nlev)  :: rho                  ! density of dry air [kg/m^3]
-    REAL(wp), DIMENSION(ngrids,nlev)  :: zminice,znum,zdesr,zd,zntot,zden,lsm_2D
+    REAL(wp), DIMENSION(ng,nl)  :: hyam_mat,hybm_mat
+    REAL(wp), DIMENSION(ng,nl+1):: hyai_mat,hybi_mat
+    REAL(wp), DIMENSION(ng,nl)  :: Tv                   ! virtual temperature
+    REAL(wp), DIMENSION(ng,nl)  :: CIWC_gm3, CLWC_gm3   ! kg/kg->g/m3
+    REAL(wp), DIMENSION(ng,nl)  :: DGEOZ                ! layer width (geopot) [m]
+    REAL(wp), DIMENSION(ng,nl)  :: rho                  ! density of dry air [kg/m^3]
+    REAL(wp), DIMENSION(ng,nl)  :: zminice,znum,zdesr,zd,zntot,zden,lsm_2D
 
     REAL(wp), PARAMETER :: rho_w = 1.0       ! density of water [10^3*kg/m^3]
     REAL(wp), PARAMETER :: rho_i = 0.93      ! density of ice   [10^3*kg/m^3]
@@ -65,16 +66,18 @@ CONTAINS
 
     INTEGER :: i
 
+    PRINT *, "--- Calculating model vertical properties"
+    
     !==================================================
     ! initialise some variables
     !==================================================
-    hyam_mat = SPREAD(M%aux%hyam(1:nlev),  1,ngrids)
-    hybm_mat = SPREAD(M%aux%hybm(1:nlev),  1,ngrids)
-    hyai_mat = SPREAD(M%aux%hyai(1:nlev+1),1,ngrids)
-    hybi_mat = SPREAD(M%aux%hybi(1:nlev+1),1,ngrids)
-    lsm_2d   = SPREAD(M%aux%lsm,2,nlev) ! fraction land
+    hyam_mat = SPREAD(M%aux%hyam(1:nl),  1,ng)
+    hybm_mat = SPREAD(M%aux%hybm(1:nl),  1,ng)
+    hyai_mat = SPREAD(M%aux%hyai(1:nl+1),1,ng)
+    hybi_mat = SPREAD(M%aux%hybi(1:nl+1),1,ng)
+    lsm_2d   = SPREAD(M%aux%lsm,2,nl) ! fraction land
 
-    zdesr(1:ngrids,1:nlev) = 0.0
+    zdesr(1:ng,1:nl) = 0.0
     DGEOZ=0
 
     ! LAYER GEOPOTENTIAL THICKNESS.
@@ -87,8 +90,8 @@ CONTAINS
     !    Tv = T ( 1+ (Rv/Rd-1)*qv)
     !==================================================
 
-    Tv(1:ngrids,1:nlev) = M%T(1:ngrids,1:nlev)*&
-         (1+ (Rv/Rd-1)*M%Q(1:ngrids,1:nlev))
+    Tv(1:ng,1:nl) = M%T(1:ng,1:nl)*&
+         (1+ (Rv/Rd-1)*M%Q(1:ng,1:nl))
 
     !==================================================
     !    Pressure levels
@@ -96,28 +99,28 @@ CONTAINS
     !    p_int=hyai+hybi*Psurf
     !==================================================
 
-    S%p_mid(1:ngrids,1:nlev) = &
-         hyam_mat(1:ngrids,1:nlev) + &
-         hybm_mat(1:ngrids,1:nlev)*SPREAD(M%PSURF(1:ngrids),2,nlev)
+    S%p_mid(1:ng,1:nl) = &
+         hyam_mat(1:ng,1:nl) + &
+         hybm_mat(1:ng,1:nl)*SPREAD(M%PSURF(1:ng),2,nl)
 
-    S%p_int(1:ngrids,1:nlev+1) = &
-         hyai_mat(1:ngrids,1:nlev+1) + &
-         hybi_mat(1:ngrids,1:nlev+1)* SPREAD(M%PSURF(1:ngrids),2,nlev+1)
+    S%p_int(1:ng,1:nl+1) = &
+         hyai_mat(1:ng,1:nl+1) + &
+         hybi_mat(1:ng,1:nl+1)* SPREAD(M%PSURF(1:ng),2,nl+1)
 
     !==================================================
     !    Density
     !    rho =  p /(Rd * Tv)
     !==================================================
 
-    rho(1:ngrids,1:nlev) = S%p_mid(1:ngrids,1:nlev)/&
-         (Rd*Tv(1:ngrids,1:nlev))
+    rho(1:ng,1:nl) = S%p_mid(1:ng,1:nl)/&
+         (Rd*Tv(1:ng,1:nl))
 
     !==================================================
     ! Height from surface
     ! z(i-1)=z(i) + (Rd*Tv)/g * ln(p_int(i)/p_int(i-1))
     !==================================================
 
-    DO i=nlev,2,-1
+    DO i=nl,2,-1
           DGEOZ(:,i)=(Rd*Tv(:,i))/g*LOG(S%p_int(:,i+1)/S%p_int(:,i))
           S%height(:,i)=S%height(:,i+1) + DGEOZ(:,i)
     END DO
@@ -128,10 +131,10 @@ CONTAINS
     ! Cumulated water vapour
     !==================================================
     IF (ALLOCATED(S%Q_kgm2)) THEN
-       S%Q_kgm2(1:ngrids,2:nlev) = &
-            M%Q(1:ngrids,2:nlev)*&
-            rho(1:ngrids,2:nlev)*&
-            DGEOZ(1:ngrids,2:nlev)
+       S%Q_kgm2(1:ng,2:nl) = &
+            M%Q(1:ng,2:nl)*&
+            rho(1:ng,2:nl)*&
+            DGEOZ(1:ng,2:nl)
     END IF
 
     !==================================================
@@ -139,17 +142,17 @@ CONTAINS
     ! CLWC_gm3=CLWC/CC*1000*rho
     !==================================================
 
-    CLWC_gm3(1:ngrids,1:nlev) =&
-         MERGE(M%CLWC(1:ngrids,1:nlev)/M%CC(1:ngrids,1:nlev)&
-         *1e3*rho(1:ngrids,1:nlev),&
+    CLWC_gm3(1:ng,1:nl) =&
+         MERGE(M%CLWC(1:ng,1:nl)/M%CC(1:ng,1:nl)&
+         *1e3*rho(1:ng,1:nl),&
          0._wp,&
-         M%CC(1:ngrids,1:nlev)>0)
+         M%CC(1:ng,1:nl)>0)
 
-    CIWC_gm3(1:ngrids,1:nlev) =&
-         MERGE(M%CIWC(1:ngrids,1:nlev)/M%CC(1:ngrids,1:nlev)&
-         *1e3*rho(1:ngrids,1:nlev),&
+    CIWC_gm3(1:ng,1:nl) =&
+         MERGE(M%CIWC(1:ng,1:nl)/M%CC(1:ng,1:nl)&
+         *1e3*rho(1:ng,1:nl),&
          0._wp,&
-         M%CC(1:ngrids,1:nlev)>0)
+         M%CC(1:ng,1:nl)>0)
 
     !==================================================
     ! Effective radius
@@ -179,32 +182,32 @@ CONTAINS
     ! lreff[micron] = (3*lwc_gm3 / (4*pi*rho_w*k*Ntot) )^ 1/3 (eq 11), but then revised
     ! where L=LWC
   
-    WHERE( CLWC_gm3(1:ngrids,1:nlev) > 0) 
-       zntot(1:ngrids,1:nlev) =                           &
-            (1-lsm_2d(1:ngrids,1:nlev))*                  &
+    WHERE( CLWC_gm3(1:ng,1:nl) > 0) 
+       zntot(1:ng,1:nl) =                           &
+            (1-lsm_2d(1:ng,1:nl))*                  &
             (a_sea*a_conc_sea**2 + b_sea*a_conc_sea + c_sea) + &
-            lsm_2d(1:ngrids,1:nlev)*                      &
+            lsm_2d(1:ng,1:nl)*                      &
             (a_land*a_conc_land**2 + b_land*a_conc_land + c_land)
 
-       zd(1:ngrids,1:nlev) = zd_sea*(1-lsm_2d(1:ngrids,1:nlev))+&
-            zd_land*lsm_2d(1:ngrids,1:nlev)
+       zd(1:ng,1:nl) = zd_sea*(1-lsm_2d(1:ng,1:nl))+&
+            zd_land*lsm_2d(1:ng,1:nl)
 
-       znum(1:ngrids,1:nlev) = 3.0*CLWC_gm3(1:ngrids,1:nlev)*&
-            (1.0_wp+3.0_wp*zd(1:ngrids,1:nlev)*zd(1:ngrids,1:nlev))**2
+       znum(1:ng,1:nl) = 3.0*CLWC_gm3(1:ng,1:nl)*&
+            (1.0_wp+3.0_wp*zd(1:ng,1:nl)*zd(1:ng,1:nl))**2
 
-       zden(1:ngrids,1:nlev) = 4.0*pi*zntot(1:ngrids,1:nlev)*&
-            (1.0 + zd(1:ngrids,1:nlev)*zd(1:ngrids,1:nlev))**3
+       zden(1:ng,1:nl) = 4.0*pi*zntot(1:ng,1:nl)*&
+            (1.0 + zd(1:ng,1:nl)*zd(1:ng,1:nl))**3
 
        ! if znum/zden<replog then lreff=4, otherwise 4<=lreff<=16
-       S%lreff(1:ngrids,1:nlev) = &
+       S%lreff(1:ng,1:nl) = &
             MERGE( &
             MIN( &
             MAX(100._wp*EXP(0.333_wp*&
-            LOG(znum(1:ngrids,1:nlev)/zden(1:ngrids,1:nlev))),&
+            LOG(znum(1:ng,1:nl)/zden(1:ng,1:nl))),&
             zminliq),& !max
             zmaxliq),& !min
             zminliq, & !merge=false
-            znum(1:ngrids,1:nlev)/zden(1:ngrids,1:nlev) > replog) ! condition
+            znum(1:ng,1:nl)/zden(1:ng,1:nl) > replog) ! condition
 
     END WHERE
 
@@ -213,22 +216,22 @@ CONTAINS
     ! -----------------------
     ! Is ultimately only a function of ciwc, temperature, and latitude
 
-    zminice(1:ngrids,1:nlev)   = SPREAD(&
-         20.0 + 40.0*COS(M%aux%lat_v(1:ngrids)*pi/180.0 ),2,nlev)
+    zminice(1:ng,1:nl)   = SPREAD(&
+         20.0 + 40.0*COS(M%aux%lat_v(1:ng)*pi/180.0 ),2,nl)
 
-    WHERE ( CIWC_gm3(1:ngrids,1:nlev) > 0)
+    WHERE ( CIWC_gm3(1:ng,1:nl) > 0)
 
-       zdesr(1:ngrids,1:nlev) = &
-            (1.2351 + 0.0105*(M%T(1:ngrids,1:nlev) - RTT))*&
-            ( (45.8966*CIWC_gm3(1:ngrids,1:nlev)**0.2214) +       &
-            (0.7957*CIWC_gm3(1:ngrids,1:nlev)**0.2535) *          &
-            (M%T(1:ngrids,1:nlev) - 83.15))
+       zdesr(1:ng,1:nl) = &
+            (1.2351 + 0.0105*(M%T(1:ng,1:nl) - RTT))*&
+            ( (45.8966*CIWC_gm3(1:ng,1:nl)**0.2214) +       &
+            (0.7957*CIWC_gm3(1:ng,1:nl)**0.2535) *          &
+            (M%T(1:ng,1:nl) - 83.15))
 
        ! ZRefDe* ( [20 60] <= ireff <= 155) , depending on latitude
-       S%ireff(1:ngrids,1:nlev) = ZRefDe*&
+       S%ireff(1:ng,1:nl) = ZRefDe*&
             MIN( &
-            MAX(zdesr(1:ngrids,1:nlev),&
-            zminice(1:ngrids,1:nlev)),&
+            MAX(zdesr(1:ng,1:nl),&
+            zminice(1:ng,1:nl)),&
             zmaxice )
 
     END WHERE
@@ -240,89 +243,134 @@ CONTAINS
     ! emis=1-EXP(tau/x), (x_i=2.13 and x_l=2.56 (Rossow et al. 1996))
     !==================================================
 
-    S%lwp(1:ngrids,1:nlev) = &
-         CLWC_gm3(1:ngrids,1:nlev)*DGEOZ(1:ngrids,1:nlev)/1.e3 ![kg/m2] 
-    S%ltau(1:ngrids,1:nlev) = &
-         (1e3*S%lwp(1:ngrids,1:nlev)*3)/(2*rho_w*S%lreff(1:ngrids,1:nlev))
-    S%iwp(1:ngrids,1:nlev) = &
-         CIWC_gm3(1:ngrids,1:nlev)*DGEOZ(1:ngrids,1:nlev)/1.e3 ![kg/m2] 
-    S%itau(1:ngrids,1:nlev) = &
-         (1e3*S%iwp(1:ngrids,1:nlev)*3)/(2*rho_i*S%ireff(1:ngrids,1:nlev))
+    S%lwp(1:ng,1:nl) = &
+         CLWC_gm3(1:ng,1:nl)*DGEOZ(1:ng,1:nl)/1.e3 ![kg/m2] 
+    S%ltau(1:ng,1:nl) = &
+         (1e3*S%lwp(1:ng,1:nl)*3)/(2*rho_w*S%lreff(1:ng,1:nl))
+    S%iwp(1:ng,1:nl) = &
+         CIWC_gm3(1:ng,1:nl)*DGEOZ(1:ng,1:nl)/1.e3 ![kg/m2] 
+    S%itau(1:ng,1:nl) = &
+         (1e3*S%iwp(1:ng,1:nl)*3)/(2*rho_i*S%ireff(1:ng,1:nl))
 
     S%tau=S%ltau+S%itau
 
     ! cloud_emis
     IF (ALLOCATED(S%cloud_emis)) THEN
 
-       S%cloud_emis(1:ngrids,1:nlev) = 1. - &
-            EXP( -(S%ltau(1:ngrids,1:nlev)/2.56+S%itau(1:ngrids,1:nlev)/2.13) )
+       S%cloud_emis(1:ng,1:nl) = 1. - &
+            EXP( -(S%ltau(1:ng,1:nl)/2.56+S%itau(1:ng,1:nl)/2.13) )
     END IF
 
     IF (options%sim%doRTTOV) THEN
        ! ---------------------------------------
        ! Also need the layer averages for RTTOV
        ! ---------------------------------------
-       S%LWC(1:ngrids,1:nlev-1) = &
-            (CLWC_gm3(1:ngrids,1:nlev-1)+CLWC_gm3(1:ngrids,2:nlev))/2
-       S%IWC(1:ngrids,1:nlev-1) = &
-            (CIWC_gm3(1:ngrids,1:nlev-1)+CIWC_gm3(1:ngrids,2:nlev))/2
+       S%LWC(1:ng,1:nl-1) = &
+            (CLWC_gm3(1:ng,1:nl-1)+CLWC_gm3(1:ng,2:nl))/2
+       S%IWC(1:ng,1:nl-1) = &
+            (CIWC_gm3(1:ng,1:nl-1)+CIWC_gm3(1:ng,2:nl))/2
     END IF
+    
   END SUBROUTINE CALC_MODEL_VERTICAL_PROPERTIES
 
-  SUBROUTINE GET_MODEL_SSA_AND_G(sub,sat,ngrids,nlev,r_eff)
+  SUBROUTINE GET_MODEL_SSA_AND_G(sub,LUT,ng,nl)
 
-    !Calculate the combined liquid and ice single
-    !scattering albedo, g, and the asymmetry parameter, w0 for the model. This is
-    !done using look up tables of g and w0 as a function cloud
-    !effective radius. At each model layer the g and w0 are derived
-    !for ice and liquid separately and are then combined
-    ! This is based on code from COSP (cosp_optics.F90)
+    !Calculate the combined liquid and ice single scattering albedo,
+    !g, and the asymmetry parameter, w0 for the model. This is done
+    !using look up tables of g and w0 as a function cloud effective
+    !radius. At each model layer the g and w0 are derived for ice and
+    !liquid separately and are then combined This is based on code
+    !from COSP (cosp_optics.F90)
 
     IMPLICIT NONE
 
-    TYPE(satellite), INTENT(in)  :: sat
-    TYPE(optics_LUT), INTENT(in) :: r_eff
-    TYPE(subset), INTENT(inout)  :: sub
-    INTEGER, INTENT(in)          :: ngrids,nlev
+    TYPE(subset),     INTENT(inout) :: sub
+    TYPE(optics_LUT), INTENT(in)    :: LUT
+    INTEGER,          INTENT(in)    :: ng,nl
 
-    REAL(wp), DIMENSION(ngrids,nlev) :: water_g,ice_g,water_w0,ice_w0
+    ! internal
+    REAL(wp), DIMENSION(ng,nl) :: water_g,ice_g,water_w0,ice_w0
+    integer :: i,j !debugging
+    
+    PRINT *, "--- Calculating model cloud optical properties"
 
-    water_g (1:ngrids,1:nlev) = 0.0   
-    water_w0(1:ngrids,1:nlev) = 0.0
-    ice_g   (1:ngrids,1:nlev) = 0.0
-    ice_w0  (1:ngrids,1:nlev) = 0.0
+    water_g (1:ng,1:nl) = 0.0   
+    water_w0(1:ng,1:nl) = 0.0
+    ice_g   (1:ng,1:nl) = 0.0
+    ice_w0  (1:ng,1:nl) = 0.0
 
-    WHERE (.NOT.sub%data_mask .AND. SPREAD(sub%sunlit,2,nlev).EQ.1 )
-       WHERE (sub%tau > 0) 
+!    do i=1,ng
+!       do j =1,nl
+!    do i=57303,57303
+!       do j =41,nl
+!    if (sub%tau(i,j) > 0) then
+!             ! there is a cloud
+!             if (sub%ltau(i,j) > 0) then
+!                ! there is a liquid cloud
+!
+!                water_g (i,j) = &
+!                     GET_G_NIR  (sub%lreff(i,j),LUT%water,phaseIsLiquid)
+!                water_w0(1:ng,1:nl) = &
+!                     GET_SSA_NIR(sub%lreff(i,j),LUT%water,phaseIsLiquid)
+!
+!
+!             end if
+!             if (sub%itau(i,j) > 0) then
+!                ! there is an ice cloud
+!
+!                ice_g   (i,j) = &
+!                     GET_G_NIR  (sub%ireff(i,j),LUT%ice,phaseIsIce)
+!                ice_w0  (i,j) = &
+!                     GET_SSA_NIR(sub%ireff(i,j),LUT%ice,phaseIsIce)
+!                
+!             end if
+!
+!             ! combined cloud scattering albedo
+!             sub%g0 (i,j) = &
+!                  (sub%ltau(i,j)*water_g(i,j) + sub%itau(i,j)*ice_g(i,j)) / & 
+!                  sub%tau(i,j)
+!
+!          end if
+!       end do
+!    end do
+
+    WHERE (.NOT.sub%data_mask .AND. SPREAD(sub%sunlit,2,nl).EQ.1 )
+       WHERE (sub%tau(1:ng,1:nl) > 0) 
           ! there is a cloud
-          WHERE (sub%ltau(1:ngrids,1:nlev) > 0)
-             !there is a liquid cloud
-             water_g (1:ngrids,1:nlev) = &
-                  GET_G_NIR  (sub%lreff(1:ngrids,1:nlev),r_eff%water,sat%is_ch3b)
-             water_w0(1:ngrids,1:nlev) = &
-                  GET_SSA_NIR(sub%lreff(1:ngrids,1:nlev),r_eff%water,sat%is_ch3b)
-          END WHERE
-          WHERE (sub%itau(1:ngrids,1:nlev) > 0)
-             ! there is an ice cloud
-             ice_g   (1:ngrids,1:nlev) = &
-                  GET_G_NIR  (sub%ireff(1:ngrids,1:nlev),r_eff%ice,sat%is_ch3b)
-             ice_w0  (1:ngrids,1:nlev) = &
-                  GET_SSA_NIR(sub%ireff(1:ngrids,1:nlev),r_eff%ice,sat%is_ch3b)
-          END WHERE
 
-          sub%g0 (1:ngrids,1:nlev) = &
-               (sub%ltau(1:ngrids,1:nlev)*water_g(1:ngrids,1:nlev) + &
-               sub%itau(1:ngrids,1:nlev)*ice_g(1:ngrids,1:nlev)) / & 
-               sub%tau 
-          sub%w0(1:ngrids,1:nlev) = ( &
-               sub%ltau(1:ngrids,1:nlev)*&
-               water_g(1:ngrids,1:nlev)*water_w0(1:ngrids,1:nlev) + &
-               sub%itau(1:ngrids,1:nlev)*&
-               ice_g(1:ngrids,1:nlev)*ice_w0(1:ngrids,1:nlev) ) / &
-               (sub%g0(1:ngrids,1:nlev)*sub%tau)
+          water_g (1:ng,1:nl) = &
+               GET_G_NIR  (sub%lreff(1:ng,1:nl),LUT%water,phaseIsLiquid)
+          water_w0(1:ng,1:nl) = &
+               GET_SSA_NIR(sub%lreff(1:ng,1:nl),LUT%water,phaseIsLiquid)
+          ice_g   (1:ng,1:nl) = &
+               GET_G_NIR  (sub%ireff(1:ng,1:nl),LUT%ice,phaseIsIce)
+          ice_w0  (1:ng,1:nl) = &
+                  GET_SSA_NIR(sub%ireff(1:ng,1:nl),LUT%ice,phaseIsIce)
+
+          sub%w0 (1:ng,1:nl) = &
+               (sub%ltau(1:ng,1:nl)*water_w0(1:ng,1:nl) + &
+               sub%itau(1:ng,1:nl)*ice_w0(1:ng,1:nl)) / & 
+               sub%tau(1:ng,1:nl)
+          
+          sub%g0(1:ng,1:nl) = ( &
+               sub%ltau(1:ng,1:nl)*water_g(1:ng,1:nl)*water_w0(1:ng,1:nl) + &
+               sub%itau(1:ng,1:nl)*ice_g(1:ng,1:nl)*ice_w0(1:ng,1:nl) ) / &
+               (sub%w0(1:ng,1:nl)*sub%tau(1:ng,1:nl))
        END WHERE
     END WHERE
 
+!    write(*,'(a5,x,i5,a,x,i2)') "grd =",57303,"top = 41 bottom =",nl
+!    write(*,'(a6,x,51(f7.2,x))') "ltau =",sub%ltau(57303,41:nl)
+!    write(*,'(a6,x,51(f7.2,x))') "lref =",sub%lreff(57303,41:nl)
+!    write(*,'(a6,x,51(f7.2,x))') "g0_w =",water_g(57303,41:nl)
+!    write(*,'(a6,x,51(f7.2,x))') "w0_w =",water_w0(57303,41:nl)
+!    write(*,'(a6,x,51(f7.2,x))') "itau =",sub%itau(57303,41:nl)
+!    write(*,'(a6,x,51(f7.2,x))') "iref =",sub%ireff(57303,41:nl)
+!    write(*,'(a6,x,51(f7.2,x))') "g0_i =",ice_g(57303,41:nl)
+!    write(*,'(a6,x,51(f7.2,x))') "w0_i =",ice_w0(57303,41:nl)
+!    write(*,'(a6,x,51(f7.2,x))') "tau =",sub%tau(57303,41:nl)
+!    write(*,'(a6,x,51(f7.2,x))') "g0 =",sub%g0(57303,41:nl)
+!    write(*,'(a6,x,51(f7.2,x))') "w0 =",sub%w0(57303,41:nl)
   END SUBROUTINE GET_MODEL_SSA_AND_G
 
 END MODULE CALC_FROM_MODEL

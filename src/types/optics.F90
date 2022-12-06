@@ -9,35 +9,37 @@ MODULE optics_m
 
   INTEGER, PARAMETER :: num_trial_res = 20
   INTEGER, PARAMETER :: n_POD_edges = 20
+  INTEGER, PARAMETER :: small_liq=10
+  INTEGER, PARAMETER :: small_ice=30
 
+  TYPE polyfit
+     REAL(wp), ALLOCATABLE :: g0_small(:)
+     REAL(wp), ALLOCATABLE :: w0_small(:)
+     REAL(wp), ALLOCATABLE :: g0_large(:)
+     REAL(wp), ALLOCATABLE :: w0_large(:)
+  END type polyfit
+     
   TYPE effective_radius
-
-
      ! single scattering albedo and assymetry parameter at 1.6 micron
      ! and 3.7 micron
 
-     REAL(wp), ALLOCATABLE :: g0_16(:)
-     REAL(wp), ALLOCATABLE :: w0_16(:)
-     REAL(wp), ALLOCATABLE :: g0_37(:)
-     REAL(wp), ALLOCATABLE :: w0_37(:)
-
+     ! fit functions
+     TYPE(polyfit) :: fit
+    
      ! effective radius in LUT
-     REAL(wp), ALLOCATABLE :: re(:)
+     REAL(wp), ALLOCATABLE :: Re(:)
 
      ! trial effective radius's
-     INTEGER :: num_trial_res
      REAL(wp), ALLOCATABLE :: trial(:)
 
      INTEGER  :: nRe ! number of effective radius's
      REAL(wp) :: min,max
   END TYPE effective_radius
-
   TYPE scattering_properties
      REAL(wp), ALLOCATABLE  :: g0(:)
      REAL(wp), ALLOCATABLE  :: w0(:)
      TYPE(effective_radius) :: re
   END TYPE scattering_properties
-
   TYPE cloud_albedo
      REAL(wp), ALLOCATABLE :: Albedo(:,:,:)
      REAL(wp), ALLOCATABLE :: Re    (:)
@@ -56,7 +58,6 @@ MODULE optics_m
      TYPE(scattering_properties) :: optics
      TYPE(cloud_albedo)          :: albedo
   END TYPE cloud_phase
-
   TYPE GZero_t
      ! Defines GZero_m module used to hold information about the nearest
      ! neighbour grid point array indices when interpolating Look-Up Tables
@@ -77,7 +78,6 @@ MODULE optics_m
      REAL(wp):: R1           ! 1.0 - dR (stored for frequent use)
      REAL(wp):: So1          ! 1.0 - dSuZ (stored for frequent use)
   END TYPE GZero_t
-
   TYPE optics_LUT
      TYPE(cloud_phase) :: ice
      TYPE(cloud_phase) :: water
@@ -86,15 +86,13 @@ MODULE optics_m
 
   ! for cloud fraction
   !
-  TYPE sim_aux
-
+  TYPE simulator_aux
      TYPE(optics_LUT)      :: LUT
-     REAL(wp), ALLOCATABLE :: detection_limit    (:,:)
      REAL(wp), ALLOCATABLE :: POD_layers         (:,:,:)
      REAL(wp), ALLOCATABLE :: POD_tau_bin_edges  (:)
      REAL(wp), ALLOCATABLE :: POD_tau_bin_centers(:)
      REAL(wp), ALLOCATABLE :: random_numbers     (:,:,:)
-  END TYPE sim_aux
+  END TYPE simulator_aux
   !
   ! ------
 
@@ -102,8 +100,9 @@ MODULE optics_m
        deallocate_optics
 
 CONTAINS
-
-  ELEMENTAL FUNCTION populate_effective_radius_LUT(sim,phase) RESULT(Re)
+    
+  ELEMENTAL FUNCTION populate_effective_radius_LUT(CDR,phase,is_ch3B)&
+       & RESULT(re)
 
     ! ----------
     ! CLARA LUT's
@@ -141,132 +140,113 @@ CONTAINS
 
     IMPLICIT NONE
 
-    CHARACTER(*),INTENT(in) :: sim
+    CHARACTER(*),INTENT(in) :: CDR
     INTEGER, INTENT(in) :: phase ! liquid=1, ice=2
+    LOGICAL, INTENT(in) :: is_ch3B
     TYPE(effective_radius):: re
     INTEGER :: i
-
-    Re%num_trial_res=num_trial_res
-
-    SELECT CASE(sim)
-    CASE('clara')
-       IF (phase.EQ.1) Re%nRe = 8
-       IF (phase.EQ.2) Re%nRe = 9
+    
+    SELECT CASE(CDR)
+    CASE('clara-a2','clara-a3')
+       IF (phase.EQ.1) re%nRe = 8
+       IF (phase.EQ.2) re%nRe = 9
     CASE('cloud_cci')
-       IF (phase.EQ.1) Re%nRe = 12
-       IF (phase.EQ.2) Re%nRe = 23
+       IF (phase.EQ.1) re%nRe = 12
+       IF (phase.EQ.2) re%nRe = 23
     END SELECT
+    ALLOCATE(re%Re(re%nRe))
+    ALLOCATE(re%trial(num_trial_res))
+     
+    SELECT CASE(CDR)
 
-    ALLOCATE(Re%re   (Re%nRe)      ,&
-             Re%g0_16(Re%nRe)      ,&
-             Re%w0_16(Re%nRe)      ,&
-             Re%g0_37(Re%nRe)      ,&
-             Re%w0_37(Re%nRe)      ,&
-             Re%trial(num_trial_res))
-
-    SELECT CASE(sim)
-
-    CASE('clara')
+    CASE('clara-a2','clara-a3')
+      
        ! --------------
        !    CLARA
        ! -------------- 
+       ALLOCATE(re%fit%g0_small(4),re%fit%g0_large(4),re%fit%w0_small(4),&
+            re%fit%w0_large(3))
 
+       
+       ! Always use cubic for CLARA
+       ! For liquid, small means less than 10 microns, large is
+       ! greater
        IF (phase.EQ.1) THEN! liquid
-
-          Re%re    = (/3.00,4.25,6.00,8.50,12.00,17.00,24.00,34.00/)
-
-          Re%g0_37 = (/0.806269,0.789406,0.767975,0.779810,0.813295,&
-               0.843947,0.868019,0.889109/)
-
-          Re%g0_16 = (/0.794294,0.794515,0.815903,0.836549,0.850984,&
-               0.862017,0.870501,0.877463/)
-
-          Re%w0_37 = (/0.976040,0.965643,0.945708,0.919468,0.890786,&
-               0.857294,0.817537,0.770678/)
-
-          Re%w0_16 = (/0.998404,0.997500,0.996338,0.994817,0.992806,&
-               0.990160,0.986504,0.981392/)
-
+          re%Re    = (/3.00,4.25,6.00,8.50,12.00,17.00,24.00,34.00/)
+          IF (is_ch3B) THEN
+             re%fit%g0_small = (/0.917106,-0.051528, 0.005521,-0.000162/)
+             re%fit%g0_large = (/0.649317, 0.020399,-0.000658, 0.000008/)
+             re%fit%w0_small = (/0.992618,-0.001896,-0.001386, 0.000070/)
+             re%fit%w0_large = (/0.990696,-0.009177, 0.000080/)
+          ELSE
+             re%fit%g0_small = (/0.754852, 0.013001,-0.000500,0.000007/) 
+             re%fit%g0_large = (/0.754852, 0.013001,-0.000500,0.000007/) 
+             re%fit%w0_small = (/1.000119,-0.000630, 0.000002/) 
+             re%fit%w0_large = (/1.000119,-0.000630, 0.000002/) 
+          END IF
        ELSEIF (phase.EQ.2) THEN !ice
-
-          Re%re    = (/5.00,7.07,10.00,14.15,20.00,28.28,40.00,56.58,&
-               80.00/)
-
-          Re%g0_37 = (/0.756000,0.784000,0.814000,0.846000,0.878000,&
-               0.907000,0.932000,0.948000,0.956000/)
-
-          Re%g0_16 = (/0.779000,0.784000,0.789000,0.794000,0.801000,&
-               0.809000,0.824000,0.848000,0.873000/)
-
-          Re%w0_37 = (/0.882300,0.845000,0.800300,0.750300,0.698000,&
-               0.647700,0.606200,0.577700,0.558300/)
-
-          Re%w0_16 = (/0.987200,0.981900,0.974700,0.964800,0.951200,&
-               0.932800,0.908100,0.875500,0.836500/)
-
+          ! For ice, small means less than 30 microns, large is greater
+          re%Re    = (/5.00,7.07,10.00,14.15,20.00,28.28,40.00,56.58,80.00/)
+          IF (is_ch3B) THEN
+             re%fit%g0_small = (/0.682793, 0.017103,-0.000456,0.000005/)
+             re%fit%g0_large = (/0.829044, 0.003454,-0.000023/)
+             re%fit%w0_small = (/0.984572,-0.023210, 0.000538,-0.000005/)
+             re%fit%w0_large = (/0.773026,-0.005482, 0.000035/)
+          ELSE
+             re%fit%g0_small = (/0.774316, 0.001323,-0.000001/)
+             re%fit%g0_large = (/0.774316, 0.001323,-0.000001/)
+             re%fit%w0_small = (/0.999659,-0.002548, 0.000006/)
+             re%fit%w0_large = (/0.999659,-0.002548, 0.000006/)
+          END IF
        END IF
 
     CASE('cloud_cci')
        ! --------------
        !    Cloud_cci
-       ! -------------- 
+       ! --------------
 
+       ALLOCATE(re%fit%g0_small(5),re%fit%g0_large(3),&
+            re%fit%w0_small(4),re%fit%w0_large(3))
+       
        IF (phase.EQ.1) THEN! liquid
+          re%Re = (/1,3,5,7,9,11,13,15,17,19,21,23/)
+          IF (is_ch3B) THEN
+             ! For liquid, small means less than 10 microns, large is greater
+             re%fit%g0_small = (/0.348833, 0.366684,-0.097879,0.010294,-0.000371/)
+             re%fit%g0_large = (/0.665379, 0.017114,-0.000356/)
+             re%fit%w0_small = (/0.953224, 0.019062,-0.004726,0.000229/)
+             re%fit%w0_large = (/0.991867,-0.009941, 0.000103/)
+          ELSE                                     
+             re%fit%g0_small = (/0.894848,-0.087999, 0.023229,-0.002236,0.000074/)
+             re%fit%g0_large = (/0.804219, 0.005214,-0.000102/)
+             re%fit%w0_small = (/0.992141,-0.000624, 0.000004/)
+             re%fit%w0_large = (/1.608582,-0.177541, 0.018427,-0.000824,0.000013/)
 
-          Re%re = (/1.00000,3.00000,5.00000,7.00000,9.00000,11.0000,&
-               13.0000,15.0000,17.0000,19.0000,21.0000,23.0000/)
-
-          Re%g0_37 = (/0.626871,0.819327,0.783379,0.766986,0.788780,&
-               0.811922,0.829410,0.842919,0.852329,0.860446,0.866794&
-               ,0.872355/)
-
-          Re%g0_16 = (/0.827948,0.785390,0.802836,0.828255,0.842266,&
-               0.849973,0.855060,0.859668,0.863104,0.866163,0.868552&
-               ,0.870674/)
-
-          Re%w0_37 = (/0.966989,0.976486,0.957191,0.932168,0.910892,&
-               0.894659,0.880104,0.865600,0.852920,0.839949,0.828469&
-               ,0.817487/)
-
-          Re%w0_16 = (/0.991526,0.990282,0.989145,0.987935,0.986817,&
-               0.985718,0.966989,0.976486,0.957191,0.932168,0.910892&
-               ,0.894659/)
-
-
+          END IF
        ELSEIF (phase.EQ.2) THEN !ice
 
-          Re%re = (/4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,&
+          re%Re = (/4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,&
                72,76,80,84,88,92/)
 
-          Re%g0_37 = (/ 0.581337,0.635218,0.656466,0.670513,0.682161,&
-               0.696564,0.714014,0.731463,0.805473,0.832767,0.860062,&
-               0.870130,0.861158,0.852185,0.843213,0.834240,0.825268,&
-               0.816295,0.807323,0.810883,0.821191,0.831500,0.841809/)
-
-          Re%g0_16 = (/ 0.726038,0.758328,0.769519,0.776531,0.782151,&
-               0.788821,0.796652,0.804483,0.836676,0.847229,0.857781,&
-               0.861654,0.858143,0.854632,0.851121,0.847610,0.844099,&
-               0.840589,0.837078,0.838613,0.842866,0.847119,0.851372/)
-
-          Re%w0_37 = (/ 0.921272,0.887802,0.862080,0.838227,0.814996,&
-               0.790173,0.763588,0.737004,0.672871,0.653529,0.634187,&
-               0.622179,0.618279,0.614378,0.610477,0.606577,0.602676,&
-               0.598775,0.594875,0.589266,0.582739,0.576211,0.569683/)
-
-          Re%w0_16 = (/ 0.987856,0.977456,0.967581,0.957769,0.947977,&
-               0.938279,0.928684,0.919088,0.903135,0.893414,0.883692,&
-               0.875283,0.868325,0.861367,0.854409,0.847451,0.840494,&
-               0.833536,0.826578,0.819295,0.811838,0.804381,0.796923/)
-
+          ! For ice, small means less than 30 microns, large is greater
+          IF (is_ch3B) THEN
+             re%fit%g0_small = (/ 0.518512, 0.019587,-0.000833, 0.000013/)
+             re%fit%g0_large = (/-0.272164, 0.056633,-0.000913, 0.000005/)
+             re%fit%w0_small = (/ 0.957291,-0.010000, 0.000218,-0.000004/)
+             re%fit%w0_large = (/ 1.374435,-0.033709, 0.000493,-0.000002/)
+          ELSE
+             re%fit%g0_small = (/0.688700, 0.011752,-0.000512,0.000008/)
+             re%fit%g0_large = (/0.389050, 0.023442,-0.000378,0.000002/)
+             re%fit%w0_small = (/1.001719,-0.002956, 0.000008/)
+             re%fit%w0_large = (/1.001719,-0.002956, 0.000008/)
+          END IF
        END IF
     END SELECT
-
-    Re%min = MINVAL(Re%re)
-    Re%max = MAXVAL(Re%re)
-
-    Re%trial = Re%min + (Re%max - Re%min)/ &
+    re%min = MINVAL(re%Re)
+    re%max = MAXVAL(re%Re)
+    re%trial = Re%min + (Re%max - Re%min)/ &
          (num_trial_res-1) * (/ (i - 1, i = 1, num_trial_res) /)
-
+    
   END FUNCTION populate_effective_radius_LUT
 
   SUBROUTINE deallocate_optics(LUT)
@@ -280,23 +260,21 @@ CONTAINS
          LUT%water%optics%w0,&
          LUT%ice%optics%g0,&
          LUT%ice%optics%w0)
-
     DEALLOCATE(&
-         LUT%water%optics%re%re,   &
-         LUT%water%optics%re%trial,&
-         LUT%water%optics%re%g0_16,&
-         LUT%water%optics%re%w0_16,&
-         LUT%water%optics%re%g0_37,&
-         LUT%water%optics%re%w0_37)
-
+         LUT%water%optics%re%Re      ,&
+         LUT%water%optics%re%trial   ,&
+         LUT%water%optics%re%fit%g0_small,&
+         LUT%water%optics%re%fit%w0_small,&
+         LUT%water%optics%re%fit%g0_large,&
+         LUT%water%optics%re%fit%w0_large)
     DEALLOCATE(&
-         LUT%ice%optics%re%re,   &
-         LUT%ice%optics%re%trial,&
-         LUT%ice%optics%re%g0_16,&
-         LUT%ice%optics%re%w0_16,&
-         LUT%ice%optics%re%g0_37,&
-         LUT%ice%optics%re%w0_37)
-
+         LUT%ice%optics%re%Re      ,&
+         LUT%ice%optics%re%trial   ,&
+         LUT%ice%optics%re%fit%g0_small,&
+         LUT%ice%optics%re%fit%w0_small,&
+         LUT%ice%optics%re%fit%g0_large,&
+         LUT%ice%optics%re%fit%w0_large)
+       
     IF (ALLOCATED(LUT%ice%albedo%Albedo)) THEN
        DEALLOCATE ( &
             LUT%ice%albedo%Albedo  ,&

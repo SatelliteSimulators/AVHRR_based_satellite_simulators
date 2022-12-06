@@ -168,7 +168,7 @@ CONTAINS
     REAL(wp), PARAMETER  :: d2r = pi/180.
     REAL(wp), PARAMETER  :: earth_radius = 6.3781e+6
     INTEGER, PARAMETER   :: step = 10
-    INTEGER              :: dbg,i
+    INTEGER              :: dbg
 
     dbg = options%dbg
 
@@ -293,13 +293,12 @@ CONTAINS
           !
           ALLOCATE(aux%lsm(nlon*nlat))
           IF (options%model .EQ. 'ec_earth') THEN
-
              ALLOCATE( lsm(nlon,nlat) ) 
-             WRITE(file, '(A,"land_sea_ec_earth.nc")') TRIM(options%paths%data_dir)
+             WRITE(file, '("data/land_sea_mask.nc")')
              ncid2=0
              dimid=1
              IF (CHECK_FILE(TRIM(file))) THEN
-                PRINT '(2A)',"getting land mask from:",TRIM(file) 
+                PRINT '(2A)'," --- getting land mask from:",TRIM(file) 
                 CALL CHECK( nf90_open     (TRIM(file),nf90_nowrite,ncid2 ) )
                 ! check if this land sea mask fits 
                 str='lon'
@@ -393,8 +392,8 @@ CONTAINS
           
           options%ncols = CEILING(aux%modelRes*100)
 
-          PRINT '(3(a,1x,i3))', "Using a static number of columns for a",&
-               aux%nlon," x",aux%nlat," grid: ncol =",options%ncols
+          PRINT '(4(a,1x,i3))', " --- Using a static number of columns for a",&
+               aux%nlon," x",aux%nlat," x",aux%nlev," grid: ncol =",options%ncols
 
           !-------------------- end AREA RESOLUTION ETC
 
@@ -599,72 +598,68 @@ CONTAINS
     END SELECT
 
     ! cloud cover
-    PRINT '(A,A)',"Reading ",strCC 
+!    PRINT '(A,A)',"Reading ",strCC 
     CALL CHECK( NF90_INQ_VARID(ncid, TRIM(strCC) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, CC, start4, count4) )
 
     ! sea ice
-    PRINT '(A,A)',"Reading ",strCI 
+!    PRINT '(A,A)',"Reading ",strCI 
     CALL CHECK( NF90_INQ_VARID(ncid, trim(strCI) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, CI, start3, count3) )
 
     ! cloud ice water content
-    PRINT '(A,A)',"Reading ",strCIWC
+!    PRINT '(A,A)',"Reading ",strCIWC
     CALL CHECK( NF90_INQ_VARID(ncid, trim(strCIWC) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, CIWC, start4, count4) )
 
     ! cloud liquid water content
-    PRINT '(A,A)',"Reading ",strCLWC 
+!    PRINT '(A,A)',"Reading ",strCLWC 
     CALL CHECK( NF90_INQ_VARID(ncid, trim(strCLWC) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, CLWC, start4, count4) )
 
     ! water vapour profile
-    PRINT '(A,A)',"Reading ",strQ 
+!    PRINT '(A,A)',"Reading ",strQ 
     CALL CHECK( NF90_INQ_VARID(ncid, trim(strQ) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, Q, start4, count4) )
 
     ! surface skin temperature
-    PRINT '(A,A)',"Reading ",strSKT 
+!    PRINT '(A,A)',"Reading ",strSKT 
     CALL CHECK( NF90_INQ_VARID(ncid, trim(strSKT) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, SKT, start3, count3) )
 
     ! Temperature profile
-    PRINT '(A,A)',"Reading ",strT 
+!    PRINT '(A,A)',"Reading ",strT 
     CALL CHECK( NF90_INQ_VARID(ncid, trim(strT) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, T, start4, count4) ) 
 
     ! 2m temperature
-    PRINT '(A,A)',"Reading ",strT2M 
+!    PRINT '(A,A)',"Reading ",strT2M 
     CALL CHECK( NF90_INQ_VARID(ncid, trim(strT2M) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, T2M, start3, count3) )
 
     ! Total cloud cover
-    PRINT '(A,A)',"Reading ",strTCC 
+!    PRINT '(A,A)',"Reading ",strTCC 
     CALL CHECK( NF90_INQ_VARID(ncid, trim(strTCC) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, TCC, start3, count3) )
 
    ! Total column water vapour
-    PRINT '(A,A)',"Reading ",strTCWV 
+!    PRINT '(A,A)',"Reading ",strTCWV 
     CALL CHECK( NF90_INQ_VARID(ncid, TRIM(strTCWV) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, TCWV, start3, count3) )
 
     ! Surface pressure
     IF (options%model.EQ.'ec_earth') THEN 
        var='LNSP'
-       PRINT '(A,A)',"Reading ",var 
+!       PRINT '(A,A)',"Reading ",var 
        CALL CHECK( NF90_INQ_VARID(ncid, TRIM(var) , varid),dbg)
        CALL CHECK( NF90_GET_VAR(ncid, varid, tmpPsurf, start4, [nlon,nlat,1,1]) )
        PSURF(1:nlon,1:nlat)=EXP(tmpPsurf(1:nlon,1:nlat,1))
     ELSEIF (options%model.EQ.'racmo') THEN
-       PRINT '(A,A)',"Reading ",var 
+!       PRINT '(A,A)',"Reading ",var 
        var='ps'
        CALL CHECK( NF90_INQ_VARID(ncid, TRIM(var) , varid),dbg)
        CALL CHECK( NF90_GET_VAR(ncid, varid, PSURF, start3, count3) ) 
     END IF
-
-    IF (dbg>1) THEN
-       WRITE (0,'(a,i6)') 'EvM model_input.F90: end importing timestep',itime
-    ENDIF
 
     CALL CHECK( NF90_CLOSE(ncid))
 
@@ -754,7 +749,7 @@ CONTAINS
     ! READ the land sea mask 
     !
 
-    WRITE(file, '(A,"land_sea_mask/land_sea_mask_1min.nc")') TRIM(options%paths%data_dir)
+    WRITE(file, '("data/land_sea_mask/land_sea_mask_1min.nc")')
 
     IF (.NOT. CHECK_FILE (file)) THEN
        STOP "where's the file?"

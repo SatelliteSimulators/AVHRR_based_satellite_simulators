@@ -163,10 +163,10 @@ CONTAINS
     ! out for ambiguous clouds, i.e., a solution that could
     ! give several different cloud heights
 
-    ! find the tropopause level (highest inversion). sub%inversion_layers
+    ! find the tropopause level (highest inversion). sub%inv_layers
     ! is filled with 0s in the last "nlev-number of inversion layers" indices
     trop_lev = &
-         MINVAL(S%inversion_layers(d1,1:nlev),mask=S%inversion_layers(d1,1:nlev) .GT. 0)
+         MINVAL(S%inv_layers(d1,1:nlev),mask=S%inv_layers(d1,1:nlev) .GT. 0)
 
     inv_index = 1
     found = .FALSE.
@@ -178,7 +178,7 @@ CONTAINS
        ! the troposphere. Include the bottom and top of the
        ! troposphere.
 
-       IF ( MINVAL(ABS(S%inversion_layers(d1,:)-inl)) .EQ. 0 & !ismember
+       IF ( MINVAL(ABS(S%inv_layers(d1,:)-inl)) .EQ. 0 & !ismember
             .AND.&
             ABS(Tb - S%Tcorr(d1,inl)) .LE. DistanceToInversion ) THEN
           ! If Tb is within .5K of a temperature inversion, assign the
@@ -959,8 +959,8 @@ CONTAINS
     inversion(1:nlev) = -999
 
     DO inl = nlev,1,-1
-       IF (S%inversion_layers(d1,inl) .GT. 0) THEN
-          inversion(inv_ind) = S%inversion_layers(d1,inl)
+       IF (S%inv_layers(d1,inl) .GT. 0) THEN
+          inversion(inv_ind) = S%inv_layers(d1,inl)
           inv_ind = inv_ind+1
        END IF
     END DO
@@ -1020,7 +1020,7 @@ CONTAINS
          "tau","scops","cfrac","St:land","St:sea","Cirrus","WHERE","Explanation" 
     PRINT *,""
     WRITE(str,'(a,I2,a)') "(a,",inv_ind-1,"(I2,1x))"
-    PRINT TRIM(str),"Inversion_layers = ",(S%inversion_layers(d1,ii),ii=1,inv_ind-1)
+    PRINT TRIM(str),"inv_layers = ",(S%inv_layers(d1,ii),ii=1,inv_ind-1)
     SELECT CASE(I%clara%flagged(ins))
     CASE (1)
        PRINT '(A)','Clear cut case'

@@ -58,14 +58,15 @@ CONTAINS
     TYPE(variablesContainer) :: V
     TYPE(model_aux)          :: A
     INTEGER                  :: ncid
-    INTEGER                  :: i,lx,ly,lz,lt,n_tbins,n_pbins,nchan
-    CHARACTER(len=1000)      :: string,string1,string2
+    INTEGER                  :: lx,ly,lz,lt,n_tbins,n_pbins,nchan
+    CHARACTER(len=1000)      :: string
     INTEGER, DIMENSION(8)    :: date_time
     INTEGER, DIMENSION(2)    :: utc
     CHARACTER(len=1000)      :: creation
     INTEGER :: year,month,date
     INTEGER :: block1id,block2id,bndsid
-    INTEGER :: lnid,ltid,lvlid,tauid,prsid,tauid2,prsid2,nchanid,colid,tid,podid,podid2,phaseid,sunid
+    INTEGER :: lnid,ltid,lvlid,tauid,prsid,tauid2,prsid2,&
+         colid,tid,podid,podid2,phaseid,sunid
     INTEGER, PARAMETER :: indef = 40,indes = 400
     INTEGER block1(indef),block2(indes)
     INTEGER, PARAMETER :: bnds = 2
@@ -94,7 +95,9 @@ CONTAINS
     ! institute etc
     CALL check( nf90_put_att(ncid,nf90_global,"Contact" ,"Salomon.Eliasson@smhi.se"))
     CALL check( nf90_put_att(ncid,nf90_global,"Institute" ,"SMHI"))
-
+    CALL check( nf90_put_att(ncid,nf90_global,"Simulator version" ,O%simVersionNumber))
+    CALL check( nf90_put_att(ncid,nf90_global,"Simulated Climate data record" ,O%CDR))
+    
     ! creation
     CALL DATE_AND_TIME(values=date_time)
     utc(1) = FLOOR((REAL(60*date_time(5)+date_time(6)-date_time(4)))/60)
@@ -107,7 +110,7 @@ CONTAINS
     ! technical specs
     string='CLARA-A2'
     CALL check( nf90_put_att(ncid,nf90_global,'simulated dataset',TRIM(string)))
-    CALL check( nf90_put_att(ncid,nf90_global,'based_on_model',O%model))
+    CALL check( nf90_put_att(ncid,nf90_global,'model',O%model))
 
     SELECT CASE (O%subsampler)
     CASE (0)
@@ -125,8 +128,6 @@ CONTAINS
        WRITE(string,'(A,1x,f3.1)') &
             "globally constant optical depth cloud threshold at tau=",O%cloudMicrophys%tau_min
     CASE (1)
-       string = "Cloud mask created using global gridded detection limits"
-    CASE (2)
        string = "probability of detection based on optical depth bins"
     END SELECT
     CALL check( nf90_put_att(ncid,nf90_global,'cloud_mask_method',TRIM(string)))
@@ -161,7 +162,7 @@ CONTAINS
     CALL check( nf90_def_dim(ncid,'tau_bnds',n_tbins+1,tauid2) )
     CALL check( nf90_def_dim(ncid,'pres_bnds',n_pbins+1,prsid2) )
     CALL check( nf90_def_dim(ncid,'phase',2,phaseid) )
-    IF (O%cloudMicrophys%cf_method.EQ.2) THEN
+    IF (O%cloudMicrophys%cf_method.EQ.1) THEN
        CALL check( nf90_def_dim(ncid,'pod_bins',&
             SIZE(O%sim_aux%POD_tau_bin_centers),podid) )
        CALL check( nf90_def_dim(ncid,'pod_bnds',&
@@ -267,9 +268,6 @@ CONTAINS
 
     IF (V%hist2d_cot_ctp) &
          CALL addVariable(ncid,'hist2d_cot_ctp',O,A,lnid,ltid,tauid,prsid,phaseid,tid,clara=clara)
-
-    IF (ALLOCATED(O%sim_aux%detection_limit)) &
-         CALL addVariable(ncid,'detection_limit',O,A,lnid,ltid,sunid,tid,clara=clara)
     IF (ALLOCATED(O%sim_aux%POD_layers)) &
          CALL addVariable(ncid,'POD_layers',O,A,lnid,ltid,podid,sunid,tid,clara=clara)
 
@@ -427,8 +425,6 @@ CONTAINS
        CALL putVar(ncid,varid,A,clara%av%ctp_log)
     CASE ('ctt')
        CALL putVar(ncid,varid,A,clara%av%ctt)
-    CASE ('detection_limit')
-       CALL putVar(ncid,varid,A,data2=O%sim_aux%detection_limit)
     CASE ('iwp')
        CALL putVar(ncid,varid,A,clara%av%iwp)
     CASE ('lwp')

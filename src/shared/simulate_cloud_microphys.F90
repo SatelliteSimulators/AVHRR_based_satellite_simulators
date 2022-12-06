@@ -11,7 +11,6 @@ MODULE SIMULATE_CLOUD_MICROPHYS
        COMPUTE_TOA_REFLECTANCE,        &
        INTERPOLATE_TO_MIN,             &
        RE_FILL,                        &
-       TRIAL_G_AND_W0,                 &
        TWO_STREAM_REFLECTANCE
   USE INTERNAL_SIMULATOR,        ONLY: &
        INTERNAL
@@ -25,7 +24,7 @@ MODULE SIMULATE_CLOUD_MICROPHYS
        NUM_TRIAL_RES,                  &
        OPTICS_LUT,                     &
        SCATTERING_PROPERTIES,          &
-       SIM_AUX
+       SIMULATOR_AUX
   USE SIMULATOR_INPUT_VARIABLES, ONLY: &
        SUBSET
 
@@ -255,7 +254,7 @@ CONTAINS
     TYPE(subset), INTENT(in)     :: sub
     TYPE(internal), INTENT(in)   :: inter
 
-    REAL(wp), DIMENSION(nlev)    :: g0,w0,tau
+    REAL(wp), DIMENSION(nlev)    :: g0_column,w0_column,tau_column
     REAL(wp)                     :: obs_Refl_nir
     REAL(wp), DIMENSION(num_trial_res) :: predicted_Refl_nir, trial_re
     REAL(wp) :: re_max,re_min
@@ -264,9 +263,9 @@ CONTAINS
     REAL(wp) :: cloud_effective_radius
 
     predicted_Refl_nir(1:num_trial_res) = 0._wp
-    g0                (1:nlev         ) = 0._wp
-    w0                (1:nlev         ) = 0._wp
-    tau               (1:nlev         ) = 0._wp
+    g0_column         (1:nlev         ) = 0._wp
+    w0_column         (1:nlev         ) = 0._wp
+    tau_column        (1:nlev         ) = 0._wp
     cloud_effective_radius              = 0._wp
     obs_Refl_nir                        = 0._wp
 
@@ -276,13 +275,13 @@ CONTAINS
     WHERE(inter%tau_profile(ins,1:nlev) .GT. 0)
        ! get the combined liquid and ice parameters from where
        ! scops says it's cloudy
-       g0(1:nlev)  = sub%g0(d1,1:nlev)
-       w0(1:nlev)  = sub%w0(d1,1:nlev)
-       tau(1:nlev) = inter%tau_profile(ins,1:nlev) 
+       g0_column (1:nlev) = sub%g0(d1,1:nlev)
+       w0_column (1:nlev) = sub%w0(d1,1:nlev)
+       tau_column(1:nlev) = inter%tau_profile(ins,1:nlev) 
     END WHERE
 
     obs_Refl_nir = COMPUTE_TOA_REFLECTANCE(nlev, &
-         tau(1:nlev),g0(1:nlev), w0(1:nlev))
+         tau_column(1:nlev), g0_column(1:nlev), w0_column(1:nlev))
 
     ! --------------------------------
 
@@ -295,7 +294,6 @@ CONTAINS
     ! cloud phase
     ! 3) I'm keeping it in microns
 
-       
     predicted_Refl_nir(1:num_trial_res)=TWO_STREAM_REFLECTANCE(inter%tau(ins),&
          optics%g0(1:num_trial_res),optics%w0(1:num_trial_res))
     
@@ -320,7 +318,6 @@ CONTAINS
        diffloc = MINLOC(ABS(predicted_Refl_nir-obs_Refl_nir))
        cloud_effective_radius = trial_re(diffloc(1))
     END IF
-
   END FUNCTION CLOUD_EFFECTIVE_RADIUS
 
   FUNCTION CLOUD_EFFECTIVE_RADIUS_NATIVE(d1,ins,nlev,sub,inter) RESULT(ref)
@@ -391,7 +388,7 @@ CONTAINS
     INTEGER                       :: lvl
 
     ClFree=0._wp
-    opaque  = 5._wp
+    opaque  = 4._wp ! approximate limit for accurate CALIPSO optical depth retrievals
 
     !---------
     ! CLOUD TYPE
@@ -413,22 +410,6 @@ CONTAINS
        END WHERE
 
     CASE(1)
-       ! night =0, day=1 
-       tau_min = options%sim_aux%detection_limit(d1,sunlit+1)
-
-       WHERE(inter%tau(1:nc).LE.ClFree)
-          cflag(1:nc) = 0 ! cloud free
-       ELSEWHERE((inter%tau(1:nc).GT.ClFree).AND.&
-            (inter%tau(1:nc).LT.tau_min))
-          cflag(1:nc) = 1 ! sub-visible
-       ELSEWHERE((inter%tau(1:nc).GE.tau_min).AND.&
-            (inter%tau(1:nc).LT.opaque))
-          cflag(1:nc) = 2 ! semi-transparent
-       ELSEWHERE(inter%tau(1:nc).GE.opaque)
-          cflag(1:nc) = 3 ! opaque
-       END WHERE
-
-    CASE(2)
 
        ! Combine the information on the probability of detection for a
        ! geographical location and for a optical depth interval. Most
@@ -459,33 +440,12 @@ CONTAINS
        ! depth is less than opaque (I should be using RTTOV channel
        ! differences for CLARA)
 
-       WHERE(inter%tau.EQ.0)
-          cflag=0
+       WHERE(inter%tau(1:nc).EQ.0)
+          cflag(1:nc)=0
        END WHERE
-       WHERE((cflag.EQ.3).AND.(inter%tau.LT.opaque))
-          cflag=2
+       WHERE((cflag(1:nc).EQ.3).AND.(inter%tau(1:nc).LT.opaque))
+          cflag(1:nc)=2
        END WHERE
-    CASE(3)
-
-       ! same as (2) but not separating day and night
-       DO lvl=1,SIZE(options%sim_aux%POD_tau_bin_edges)-1
-          
-          WHERE(inter%tau(1:nc).GT.options%sim_aux%POD_tau_bin_edges(lvl)&
-               & .AND.inter%tau.LE.options%sim_aux%POD_tau_bin_edges(lvl+1))
-             
-             cflag(1:nc)=MERGE(3,0,&
-                  options%sim_aux%random_numbers(1,d1,1:nc).GE.&
-                  (1-SPREAD(options%sim_aux%POD_layers(d1,lvl,1),1,nc)))
-          END WHERE
-       END DO
-
-       WHERE(inter%tau.EQ.0)
-          cflag=0
-       END WHERE
-       WHERE((cflag.EQ.3).AND.(inter%tau.LT.opaque))
-          cflag=2
-       END WHERE
-
     END SELECT
 
   END FUNCTION GET_CLOUDTYPE

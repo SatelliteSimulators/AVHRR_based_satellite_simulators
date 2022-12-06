@@ -50,6 +50,7 @@ CONTAINS
     TYPE(rng_state)     :: rngs(npoints)  ! Seeds for random number generator
     INTEGER             :: seed(npoints)
 
+    PRINT *, "--- Running scops"
     SELECT CASE(subsampler)
     CASE (0)
        ! SCOPS from COSP
@@ -79,7 +80,6 @@ CONTAINS
        PRINT*, "Mc ICA sampler not set up yet. Subsampler failed..."
     END SELECT
     
-    PRINT *, "--- Finished scops ---"
   END SUBROUTINE GET_SUBCOLUMNS
 
 !=========================================================================
@@ -276,6 +276,7 @@ CONTAINS
     INTEGER :: g,lv
     REAL(wp) :: c,f
 
+    PRINT *, "--- Correcting cloud fraction"
     CC_new=-999._wp
 
     f=1._wp/ncol
@@ -297,7 +298,6 @@ CONTAINS
        M%CLWC=M%CLWC*(CC_new/M%CC)
     END WHERE
     M%CC=CC_new
-    PRINT *, "--- Finished corrected cloud fraction ---"
 
   END SUBROUTINE CORRECT_MODEL_CLOUD_FRACTION
 

@@ -20,14 +20,15 @@ MODULE CLARA_M
        DEALLOCATE_OPTICS,        &
        NUM_TRIAL_RES,            &
        N_POD_EDGES,              &
-       SIM_AUX
+       SIMULATOR_AUX
 
   IMPLICIT NONE
 
-  PUBLIC :: ALLOCATE_CLARA, &
+  PUBLIC :: &
+       GET_NAMELIST_CLARA,  &
+       ALLOCATE_CLARA,      &
        CLARA_TYPE,          &
        DEALLOCATE_CLARA,    &
-       GET_NAMELIST_CLARA,  &
        INITIALISE_CLARA,    &
        INITIALISE_CLARA_SIM
 
@@ -74,6 +75,27 @@ MODULE CLARA_M
 
 CONTAINS
 
+    SUBROUTINE GET_NAMELIST_CLARA(x,file)
+
+    IMPLICIT NONE
+    
+    CHARACTER(len=*),INTENT(in)    :: file
+    TYPE(name_list), INTENT(inout) :: x
+    
+    CALL common_namelist   (x,file)
+    CALL namelist_ctp_tau  (x,file)
+    CALL namelist_daynight (x,file)
+    CALL namelist_microphys(x,file)
+    CALL variables_clara   (x,file)
+
+    X%sim%doClara     = .TRUE.
+    X%sim%doCloud_cci = .FALSE.
+    X%sim%doISCCP     = .FALSE.
+    X%sim%doModel     = .FALSE.
+    X%sim%doRTTOV     = .FALSE.
+
+  END SUBROUTINE GET_NAMELIST_CLARA
+
   SUBROUTINE ALLOCATE_CLARA(clara,options,aux)
 
     IMPLICIT NONE
@@ -82,8 +104,6 @@ CONTAINS
     TYPE(name_list), INTENT(inout):: options
     TYPE(model_aux),  INTENT(in)  :: aux
     INTEGER                       :: ngrids,n_tbins,n_pbins,ncol
-    
-    REAL(wp), ALLOCATABLE         :: tmp(:,:)
     REAL(wp), ALLOCATABLE         :: tmp3(:,:,:)
     INTEGER                       :: len
     CHARACTER(1000)               :: filename
@@ -96,8 +116,8 @@ CONTAINS
     n_pbins = options%ctp_tau%n_pbins
     ncol    = options%ncols
 
-    WRITE(filename, '(A,A)') TRIM(options%paths%data_dir),&
-         'microphysics/CLARA/cloud_properties/cloud_mask_limits.nc'
+    WRITE(filename, '(A)') &
+         'data/microphysics/CLARA/cloud_properties/cloud_mask_limits.nc'
 
     CALL ALLOCATE_CLARA_SIM(clara%av,options,ngrids,n_pbins,n_tbins)
 
@@ -112,26 +132,10 @@ CONTAINS
 
     END IF
 
+    ! THIS NEEDS TO BE HERE BECAUSE IT IS ONLY FOR CLARA SO FAR
     SELECT CASE (options%cloudMicrophys%cf_method)
 
     CASE(1)
-       ALLOCATE (options%sim_aux%detection_limit(ngrids,2))
-       ! use a map of optical depths
-
-       ! Night values
-       CALL AUX_DATA(filename,'detection_limit_night',&
-            'lon','lat',tmp,.TRUE.,aux,dbg=options%dbg)
-       
-       options%sim_aux%detection_limit(:,1)=RESHAPE(tmp,(/ngrids/))
-
-       ! Day values
-       CALL AUX_DATA(filename,'detection_limit_day',&
-            'lon','lat',tmp,.TRUE.,aux,dbg=options%dbg)
-       
-       options%sim_aux%detection_limit(:,2)=RESHAPE(tmp,(/ngrids/))
-
-       DEALLOCATE(tmp)
-    CASE(2)
 
        CALL AUX_DATA(filename,'COT_edges',strDim1='COT_edges',&
             data1D=options%sim_aux%POD_tau_bin_edges,dbg=options%dbg)
@@ -161,32 +165,6 @@ CONTAINS
        ! Get the random numbers I need (sunlit,:,:)
        ALLOCATE (options%sim_aux%random_numbers(2,ngrids,ncol))
        CALL RANDOM_NUMBER(harvest = options%sim_aux%random_numbers)
-
-    CASE (3)
-       ! same as case 2 yet for combined night and day
-
-       CALL AUX_DATA(filename,'COT_edges',strDim1='COT_edges',&
-            data1D=options%sim_aux%POD_tau_bin_edges,dbg=options%dbg)
-
-       ! Making the last box also valid for all clouds greater than tau=5
-       options%sim_aux%POD_tau_bin_edges(SIZE(options%sim_aux%POD_tau_bin_edges))=9999._wp
-
-       CALL AUX_DATA(filename,'COT_centers',strDim1='COT_centers',&
-            data1D=options%sim_aux%POD_tau_bin_centers,nX=len,dbg=options%dbg)
-
-       ALLOCATE (options%sim_aux%POD_layers (ngrids,len,1))
-
-       ! Combined values
-       CALL AUX_DATA(filename,'POD_combined','lon','lat',strDim3='COT_centers',&
-            data3D=tmp3,conform2model=.TRUE.,aux=aux,dbg=options%dbg)
-
-       options%sim_aux%POD_layers(:,:,1) = RESHAPE(tmp3,(/ngrids,len/))
-
-       DEALLOCATE(tmp3)
-
-       ALLOCATE (options%sim_aux%random_numbers(1,ngrids,ncol))
-       CALL RANDOM_NUMBER(harvest = options%sim_aux%random_numbers)
-
     END SELECT
 
     ALLOCATE( &
@@ -195,6 +173,12 @@ CONTAINS
          options%sim_aux%LUT%water%optics%g0(num_trial_res), &
          options%sim_aux%LUT%water%optics%w0(num_trial_res)  )
 
+    ! This has to be done earlier (outside dayloop)
+    options%sim_aux%LUT%ice%optics%g0  (1:num_trial_res) = 0._wp
+    options%sim_aux%LUT%ice%optics%w0  (1:num_trial_res) = 0._wp
+    options%sim_aux%LUT%water%optics%g0(1:num_trial_res) = 0._wp
+    options%sim_aux%LUT%water%optics%w0(1:num_trial_res) = 0._wp
+    
   END SUBROUTINE ALLOCATE_CLARA
 
   SUBROUTINE ALLOCATE_CLARA_SIM(IN,options,ngrids,n_pbins,n_tbins)
@@ -229,12 +213,18 @@ CONTAINS
 
   END SUBROUTINE ALLOCATE_CLARA_SIM
 
-  SUBROUTINE INITIALISE_CLARA(clara,ngrids,n_pbins,n_tbins)
+  SUBROUTINE INITIALISE_CLARA(clara,options,ngrids)
 
     IMPLICIT NONE
     TYPE(clara_type), INTENT(inout)     :: clara
-    INTEGER, INTENT(in) :: ngrids,n_tbins,n_pbins
+    TYPE(name_list), INTENT(inout)      :: options
+    INTEGER, INTENT(in)                 :: ngrids
 
+    INTEGER :: n_tbins,n_pbins
+
+    n_tbins = options%ctp_tau%n_tbins
+    n_pbins = options%ctp_tau%n_pbins
+    
     CALL INITIALISE_CLARA_SIM(clara%av,ngrids,-999._wp,n_pbins,n_tbins)
 
     IF (ALLOCATED(clara%sum%ctp)) THEN
@@ -245,7 +235,7 @@ CONTAINS
        clara%numel%lcld (1:ngrids) = 0._wp
        clara%numel%day  (1:ngrids) = 0._wp
     END IF
-
+    
   END SUBROUTINE INITIALISE_CLARA
 
   SUBROUTINE INITIALISE_CLARA_SIM(IN,ngrids,fill,n_pbins,n_tbins)
@@ -278,11 +268,12 @@ CONTAINS
 
   END SUBROUTINE INITIALISE_CLARA_SIM
 
-  SUBROUTINE DEALLOCATE_CLARA(clara)
+  SUBROUTINE DEALLOCATE_CLARA(clara,options)
 
     IMPLICIT NONE
     TYPE(clara_type), INTENT(inout)  :: clara
-
+    TYPE(name_list),  INTENT(inout):: options
+    
     CALL DEALLOCATE_CLARA_SIM(clara%av)
 
     IF (ALLOCATED(clara%sum%ctp)) THEN
@@ -293,6 +284,13 @@ CONTAINS
             clara%numel%lcld,&
             clara%numel%day)
     END IF
+
+
+    DEALLOCATE( &
+         options%sim_aux%LUT%ice%optics%g0, &
+         options%sim_aux%LUT%ice%optics%w0, &
+         options%sim_aux%LUT%water%optics%g0, &
+         options%sim_aux%LUT%water%optics%w0  )
 
   END SUBROUTINE DEALLOCATE_CLARA
 
@@ -320,27 +318,6 @@ CONTAINS
 
     IF (ALLOCATED(IN%hist2d_cot_ctp)) DEALLOCATE(IN%hist2d_cot_ctp)
   END SUBROUTINE DEALLOCATE_CLARA_SIM
-
-  SUBROUTINE GET_NAMELIST_CLARA(x,file)
-
-    IMPLICIT NONE
-    
-    CHARACTER(len=*),INTENT(in)    :: file
-    TYPE(name_list), INTENT(inout) :: x
-    
-    CALL common_namelist   (x,file)
-    CALL namelist_ctp_tau  (x,file)
-    CALL namelist_daynight (x,file)
-    CALL namelist_microphys(x,file)
-    CALL variables_clara   (x,file)
-
-    X%sim%doClara     = .TRUE.
-    X%sim%doCloud_cci = .FALSE.
-    X%sim%doISCCP     = .FALSE.
-    X%sim%doModel     = .FALSE.
-    X%sim%doRTTOV     = .FALSE.
-
-  END SUBROUTINE GET_NAMELIST_CLARA
   
   SUBROUTINE VARIABLES_CLARA(x,file)
 

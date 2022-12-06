@@ -1,0 +1,1 @@
+/nobackup/smhid20/users/sm_salel/data/land_sea_mask/LSM_ec_earth_b602.nc

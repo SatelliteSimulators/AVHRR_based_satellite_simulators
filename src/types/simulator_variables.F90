@@ -93,8 +93,6 @@ CONTAINS
 
     ! get the start day since 1970 1 1
     sim%epoch = DAY_SINCE_YEAR(1970,year,month,iday)
-    WRITE (0,'(a,i12,a,i6,a)') &
-         'EvM: ',year*10000+month*100+iday,' is ',sim%epoch,' days since 19700101'
 
     IF (options%paths%dailyFiles) THEN
        aux%netcdf_file = BUILD_FILENAME(&
@@ -103,8 +101,10 @@ CONTAINS
        CALL get_model_aux(aux, options, .TRUE.) ! .true. means to get 'time' only
        t1 = 1
        t2 = aux%ntlen
-       !EvMb ... in case of dailyFiles=True and racmo operate internal time-loop t from t1 to t2-1
-       !     ... simply because the interval [00:01] or [00:03] UTC is not going to be samples
+       !EvMb ... in case of dailyFiles=True and racmo operate internal
+       !     time-loop t from t1 to t2-1 ... simply because the
+       !     interval [00:01] or [00:03] UTC is not going to be
+       !     samples
        if (options%model.eq.'racmo') t2=t2-1
        !EvMe
 

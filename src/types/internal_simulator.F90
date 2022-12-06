@@ -120,30 +120,30 @@ CONTAINS
 
     nchan = options%sim%nchannels
 
-    inter%cflag         (1:ncol       ) = -999
-    inter%cph           (1:ncol       ) = -999
-    inter%cth           (1:ncol       ) = -999._wp
-    inter%ctp           (1:ncol       ) = -999._wp
-    inter%ctt           (1:ncol       ) = -999._wp
-    inter%cwp           (1:ncol       ) = -999._wp
+    inter%cflag         (1:ncol       ) = -9
+    inter%cph           (1:ncol       ) = -9
+    inter%cth           (1:ncol       ) = -9._wp
+    inter%ctp           (1:ncol       ) = -9._wp
+    inter%ctt           (1:ncol       ) = -9._wp
+    inter%cwp           (1:ncol       ) = -9._wp
     inter%frac_in_up_cld(1:ncol,1:nlev) = 0._wp
-    inter%reff          (1:ncol       ) = -999._wp
-    inter%tau           (1:ncol       ) = -999._wp
-    inter%tau_profile   (1:ncol,1:nlev) = -999._wp
+    inter%reff          (1:ncol       ) = -9._wp
+    inter%tau           (1:ncol       ) = -9._wp
+    inter%tau_profile   (1:ncol,1:nlev) = -9._wp
 
     IF (options%sim%doClara) THEN
        inter%clara%flagged (1:ncol) = 0
-       inter%Tb            (1:ncol) = -999._wp
+       inter%Tb            (1:ncol) = -9._wp
     ELSEIF (options%sim%doCloud_cci) THEN
        inter%cloud_cci%albedoIsDefined(1:ncol) = .FALSE.
-       inter%cloud_cci%cla_vis006     (1:ncol) = -999._wp
-       inter%cloud_cci%cth_c          (1:ncol) = -999._wp
-       inter%cloud_cci%ctp_c          (1:ncol) = -999._wp
-       inter%cloud_cci%ctt_c          (1:ncol) = -999._wp
+       inter%cloud_cci%cla_vis006     (1:ncol) = -9._wp
+       inter%cloud_cci%cth_c          (1:ncol) = -9._wp
+       inter%cloud_cci%ctp_c          (1:ncol) = -9._wp
+       inter%cloud_cci%ctt_c          (1:ncol) = -9._wp
     ELSEIF (options%sim%doRTTOV) THEN
-       inter%cfrac   (1:ncol,    1:nlev-1) = -999._wp
-       inter%cloud   (1:ncol,1:6,1:nlev-1) = -999._wp
-       inter%Tb_rttov(1:ncol,    1:nchan ) = -999._wp
+       inter%cfrac   (1:ncol,    1:nlev-1) = -9._wp
+       inter%cloud   (1:ncol,1:6,1:nlev-1) = -9._wp
+       inter%Tb_rttov(1:ncol,    1:nchan ) = -9._wp
     END IF
 
   END SUBROUTINE INITIALISE_INTERNAL_SIMULATOR

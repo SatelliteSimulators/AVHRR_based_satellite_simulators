@@ -143,10 +143,10 @@ CLARA=\
 
 clara:  $(CLARA)
 	$(COMPILE) $(CLARA) -o clara.x $(NETCDF_LIB)
-	@ echo "--- Finished compiling clara!"
+	@ echo " --- Finished compiling clara!"
 cloud_cci:$(CLOUD_CCI)
 	$(COMPILE) $(CLOUD_CCI) -o cloud_cci.x $(NETCDF_LIB)
-	@ echo "--- Finished compiling cloud_cci!"
+	@ echo " --- Finished compiling cloud_cci!"
 
 # COSP
 obj/cosp_kinds.o: $(p_cosp_kinds) 

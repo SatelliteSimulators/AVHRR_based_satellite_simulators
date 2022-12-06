@@ -23,7 +23,7 @@ MODULE brightness_temperatures
 
 CONTAINS
 
-  FUNCTION CORRECTED_TEMPERATURE_PROFILE(M,S,ngrids,nlev) RESULT(Tcorr)
+  FUNCTION CORRECTED_TEMPERATURE_PROFILE(M,ngrids,nlev) RESULT(Tcorr)
 
     ! Get the corrected temperature profile using the 10.8 micron
     ! channel. Currently this is only for the CLARA simulator, so I
@@ -61,15 +61,15 @@ CONTAINS
 
     ! in
     TYPE(model_type), INTENT(in) :: M
-    TYPE(subset),     INTENT(in) :: S
     INTEGER,          INTENT(in) :: ngrids,nlev
 
     ! internal
-    REAL(wp), ALLOCATABLE, DIMENSION(:)   :: delT,TCWV
     REAL(wp)                              :: maxT(ngrids,2)
     ! out
     REAL(wp)                              :: Tcorr(ngrids,nlev+1)
 
+    PRINT *, "--- Getting corrected temperature profiles"
+    
     Tcorr(1:ngrids,1:nlev)   = M%T
     maxT (1:ngrids,1)        = M%T2M
     maxT (1:ngrids,2)        = M%SKT
@@ -77,7 +77,7 @@ CONTAINS
 
   END FUNCTION CORRECTED_TEMPERATURE_PROFILE
 
-  SUBROUTINE GET_TB(d1,ncol,model,sub,inter,options,frac_out)
+  SUBROUTINE GET_TB(d1,ncol,model,sub,inter,frac_out)
 
     IMPLICIT NONE 
 
@@ -86,7 +86,6 @@ CONTAINS
     TYPE(model_type), INTENT(in)   :: model
     TYPE(subset),     INTENT(in)   :: sub
     TYPE(internal),   INTENT(inout):: inter !cflag may change, and Tb
-    TYPE(name_list),  INTENT(in)   :: options
     REAL(wp),         INTENT(in)   :: frac_out(ncol,model%aux%nlev)
 
     ! internal

@@ -7,7 +7,7 @@ MODULE namelist_input
   USE cosp_kinds, ONLY: wp
   USE handy,      ONLY: check_file
   USE my_maths,   ONLY: daysinmonth
-  USE optics_m,   ONLY: sim_aux
+  USE optics_m,   ONLY: simulator_aux
 
   IMPLICIT NONE
 
@@ -22,7 +22,6 @@ MODULE namelist_input
   TYPE paths
      ! ------- Paths -------
      !
-     !  datadir    : where the auxilliary data is
      !  dailyFiles : Whether or not the input files are daily or monthly
      !  model_input_regexp:
      !             Is the full path to the model input files. Use
@@ -35,7 +34,7 @@ MODULE namelist_input
      !  sim_output_regexp : 
      !             Same as story as model_input_regexp, but for the output NETCDF files
 
-     CHARACTER(len=1000) :: sim_output_regexp,data_dir,model_input_regexp
+     CHARACTER(len=1000) :: sim_output_regexp,model_input_regexp
      LOGICAL             :: dailyFiles
   END TYPE paths
   TYPE epoch
@@ -54,18 +53,20 @@ MODULE namelist_input
      !
 
      ! This information is used to create a level2b-like output. The
-     ! satellite (given in rttov structure, R%id), node, and
+     ! satellite, node, and
      ! year,month (provided to options%epoch) information is used to
      ! create the equator crossing times. The out put data will then
      ! have the same local time everywhere, the same as the satellites
      ! overpass times.
+     !
+     ! satellite     : name of satellite, e.g., 'noaa15'
+     ! node          : 'asc','dec', 'all',''
      !
      ! doL2bsampling : .true. = do the above
      !
      ! interpolate   : .true. = don't just sample the equatorial overpass time,
      !                          linearly interpolate it so that the 
      !                          local time matches this time everywhere
-     ! node          : 'asc','dec', 'all',''
      !
      ! local_time    : If you provide a local time, the model will
      !                 be sampled at this time
@@ -79,12 +80,9 @@ MODULE namelist_input
   TYPE cloudMicrophysics
      ! ------ cloudMicrophys ----------
      !
-     ! 'cf_method'         = technique to determine cloud fraction. 
+     ! 'cf_method'         technique to determine cloud fraction. 
      !                     0 = global constant (tau_min)
-     !                     1 = global gridded tau constants
-     !                     2 = probability of detection based on optical depth bins
-     !                     3 = 2 .AND. global gridded false alarm rate, 
-     !                         which reclassifies some cloud free bins to cloudy.
+     !                     1 = probability of detection based on optical depth bins
      !
      ! 'tau_min'            = Cloud optical depth threshold for CLARA-A1. This
      !                        should be listed in the namelist
@@ -174,7 +172,7 @@ MODULE namelist_input
      TYPE(ctp_tau)           :: ctp_tau
      TYPE(namelist_sim)      :: sim
      TYPE(variablesContainer):: vars
-     TYPE(sim_aux)           :: sim_aux
+     TYPE(simulator_aux)     :: sim_aux
 
      ! ---- debug -------- 
      !
@@ -187,13 +185,18 @@ MODULE namelist_input
      ! 'model'              = string name of the model
      ! 'overwrite_existing' = If .TRUE. it will overwite existing simulated files
      ! 'subsampler'         = 0 (scops (COSP default)), 1 (DWD SIMFERA), 2 McICA
-
+     ! 'simVersionNumber'   = version of this software
+     ! 'CDR'                = Name of the climate data record
+     !                        (cloud_cci, clara_a2, clara_a3)
+      
      INTEGER                 :: dbg
      CHARACTER(len=1000)     :: model
      CHARACTER(len=1000)     :: namelist_file
      INTEGER                 :: ncols
      LOGICAL                 :: overwrite_existing
      INTEGER                 :: subsampler
+     CHARACTER(len=3)        :: simVersionNumber
+     CHARACTER(len=10)       :: CDR
   END TYPE name_list
 
 CONTAINS
@@ -210,14 +213,16 @@ CONTAINS
     CHARACTER(len=*),INTENT(in)    :: file
     TYPE(name_list), INTENT(inout) :: x
     INTEGER                        :: year, month, day1, day2
-    CHARACTER(len=1000)            :: data_dir,model_name,rttov_dir
+    CHARACTER(len=1000)            :: model_name
     CHARACTER(len=1000)            :: model_input_regexp,sim_output_regexp
+    CHARACTER(len=10)              :: CDR
     INTEGER                        :: dbg,subsampler
     LOGICAL                        :: exists,dailyFiles,overwrite_existing,use_satellite
 
     NAMELIST/epoch/year,month,day1,day2
-    NAMELIST/paths/model_name,sim_output_regexp,data_dir&
-         &,model_input_regexp,dailyFiles,rttov_dir
+    NAMELIST/paths/CDR,model_name,&
+         model_input_regexp,sim_output_regexp,&
+         dailyFiles
     NAMELIST/other/dbg,overwrite_existing,subsampler,use_satellite
 
     day1=-999
@@ -247,15 +252,15 @@ CONTAINS
     X%epoch%day1               = day1
     X%epoch%day2               = day2
     X%namelist_file            = file
+    X%CDR                      = CDR
     X%model                    = model_name
-    X%overwrite_existing       = overwrite_existing
     X%paths%model_input_regexp = model_input_regexp
     X%paths%sim_output_regexp  = sim_output_regexp
-    X%paths%data_dir           = data_dir
     X%paths%dailyFiles         = dailyFiles
     X%dbg                      = dbg
     X%subsampler               = subsampler
-
+    X%overwrite_existing       = overwrite_existing
+    
     IF (use_satellite) THEN
        CALL namelist_satellite(x,file)
     ELSE
@@ -332,12 +337,10 @@ CONTAINS
     CHARACTER(len=*),INTENT(in)    :: file
     TYPE(name_list), INTENT(inout) :: x
     LOGICAL                        :: doL2bSampling, interpolate
-    INTEGER                        :: id_platform, id_satellite
+    CHARACTER(len=20)              :: sat
     CHARACTER(len=3)               :: node
     REAL(wp)                       :: local_time                           
-    NAMELIST/satellite/id_platform,id_satellite,node,doL2bSampling,interpolate,local_time
-
-    id_satellite=-999
+    NAMELIST/satellite/sat,node,doL2bSampling,interpolate,local_time
 
     OPEN(10,file=file,status='old')
     READ(10,satellite)
@@ -347,22 +350,8 @@ CONTAINS
     X%L2b%doL2bSampling        = doL2bSampling
     X%L2b%interpolate          = interpolate
     X%L2b%local_time           = local_time
-    ! Get the right satellite
-    IF (id_satellite .GT. 0) THEN ! it may not be provided
-       IF (id_platform .EQ. 1) THEN
-          IF (id_satellite < 10) WRITE(X%L2b%satellite,'("noaa",I1)') id_satellite
-          IF (id_satellite >= 10) WRITE(X%L2b%satellite,'("noaa",I2)') id_satellite
-       ELSEIF (id_platform .EQ. 10) THEN
-          IF (id_satellite .EQ. 1) X%L2b%satellite = 'metopa'
-          IF (id_satellite .EQ. 2) X%L2b%satellite = 'metopb'
-       ELSEIF (id_platform .EQ. 11) THEN
-          WRITE(X%L2b%satellite,'("envisat-",I1)') id_satellite
-       ELSEIF (id_platform .EQ. 8) THEN
-          WRITE(X%L2b%satellite,'("ers-",I1)') id_satellite
-       ELSE
-          WRITE (*,*) "Not yet setup for platform:", id_platform
-       ENDIF
-    END IF
+    X%L2b%satellite            = sat
+
   END SUBROUTINE namelist_satellite
 
   ! 

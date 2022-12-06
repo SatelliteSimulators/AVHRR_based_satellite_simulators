@@ -99,8 +99,7 @@ PROGRAM CLOUD_CCI_SIMULATOR
   CHARACTER(len=1000)                  :: namelist_file
   TYPE(cloud_cci_type)                 :: cloud_cci
   TYPE(cloud_albedo)                   :: alb
-  CHARACTER(9),PARAMETER               :: simulator='cloud_cci'
-  CHARACTER(3),PARAMETER               :: versionNumber = "1.0"
+  CHARACTER(3),PARAMETER               :: simVersionNumber = "1.0"
   REAL(wp)                             :: utc,day_of_year
   REAL(wp)                             :: elapsed
   INTEGER                              :: startTime,endTime,clock_rate
@@ -113,8 +112,8 @@ PROGRAM CLOUD_CCI_SIMULATOR
 
   INTEGER :: year,month,iday
   INTEGER :: day1,day2,ins,i,itime,d1,t1,t2 
-  INTEGER :: nc,nlon,nlat,nlev,ngrids,n_tbins,n_pbins
-  INTEGER, PARAMETER        :: phaseIsLiquid = 1,phaseIsIce = 2
+  INTEGER :: nc,nlon,nlat,nl,ng,n_tbins,n_pbins
+  INTEGER, PARAMETER :: phaseIsLiquid = 1,phaseIsIce = 2
   LOGICAL :: atLeastOne,L2b,need2Average,newday
 
   CALL INITIALIZE_LOCAL_SCALARS()
@@ -129,8 +128,9 @@ PROGRAM CLOUD_CCI_SIMULATOR
   day1  = options%epoch%day1
   day2  = options%epoch%day2
   L2b   = options%L2b%doL2bSampling
-
- need2Average = (.NOT.options%L2b%doL2bSampling)
+  options%simVersionNumber=simVersionNumber
+  
+  need2Average = (.NOT.options%L2b%doL2bSampling)
 
   ! ------------
   ! Check if I am going to do anything at all, and immediately leave if not
@@ -138,8 +138,8 @@ PROGRAM CLOUD_CCI_SIMULATOR
      atLeastOne=.FALSE.
      DO iday=day1,day2
         sim%netcdf_file = BUILD_FILENAME(options%paths%sim_output_regexp,&
-             sim=simulator,model=options%model,y=year,m=month,d=iday,&
-             sat=options%L2b%satellite,node=options%L2b%node,check=.FALSE.)
+             CDR=options%CDR,model=options%model,y=year,m=month,d=iday,&
+             sat=options%L2b%satellite,node=options%L2b%node)
 
         IF ( .NOT.CHECK_FILE(sim%netcdf_file) ) THEN
            atLeastOne=.TRUE.
@@ -173,29 +173,29 @@ PROGRAM CLOUD_CCI_SIMULATOR
   END IF
   nlat   = model%aux%nlat 
   nlon   = model%aux%nlon 
-  nlev   = model%aux%nlev
-  ngrids = model%aux%ngrids
+  nl   = model%aux%nlev
+  ng = model%aux%ngrids
   nc     = options%ncols
-  IF (options%dbg>1) WRITE (0,'(a,3i6)') 'EvM: nlon,nlat,nlev : ',nlon,nlat,nlev
+  IF (options%dbg>1) WRITE (0,'(a,3i6)') 'EvM: nlon,nlat,nl : ',nlon,nlat,nl
   n_tbins = options%ctp_tau%n_tbins
   n_pbins = options%ctp_tau%n_pbins
   ! --------------- aux
 
-  ALLOCATE(frac_out(ngrids,nc,nlev   ),&
-       frac_out2   (       nc,nlev   ),&
-       LST         (ngrids           ),&
-       TOD         (ngrids           ))
+  ALLOCATE(frac_out(ng,nc,nl   ),&
+       frac_out2   (       nc,nl   ),&
+       LST         (ng           ),&
+       TOD         (ng           ))
        
   frac_out= missing
   frac_out2= missing
   LST     = missing
   TOD     = missing
 
-  CALL ALLOCATE_MODEL_MATRIX(model,ngrids,nlev)
-  CALL INITIALISE_MODEL_MATRIX(model,ngrids,nlev,mv=0._wp)
-  CALL ALLOCATE_SIM_INPUT(sub,options,ngrids,nlev)
-  CALL ALLOCATE_SIMULATOR(sim,ngrids)
-  CALL ALLOCATE_INTERNAL_SIMULATOR(inter,nc,nlev,options)
+  CALL ALLOCATE_MODEL_MATRIX(model,ng,nl)
+  CALL INITIALISE_MODEL_MATRIX(model,ng,nl,mv=0._wp)
+  CALL ALLOCATE_SIM_INPUT(sub,options,ng,nl)
+  CALL ALLOCATE_SIMULATOR(sim,ng)
+  CALL ALLOCATE_INTERNAL_SIMULATOR(inter,nc,nl,options)
   CALL ALLOCATE_CLOUD_CCI(cloud_cci,options,model%aux)
   
   ! ----------------------------
@@ -207,10 +207,10 @@ PROGRAM CLOUD_CCI_SIMULATOR
 
   ! read g0 and w0 look up tables
   options%sim_aux%LUT%ice%optics%re  = &
-       POPULATE_EFFECTIVE_RADIUS_LUT(simulator,phaseIsIce)
+       POPULATE_EFFECTIVE_RADIUS_LUT(options%CDR,phaseIsIce,sat%is_ch3b)
   options%sim_aux%LUT%water%optics%re= &
-       POPULATE_EFFECTIVE_RADIUS_LUT(simulator,phaseIsLiquid)
-  CALL TRIAL_G_AND_W0(options%sim_aux%LUT,sat%is_ch3b)
+       POPULATE_EFFECTIVE_RADIUS_LUT(options%CDR,phaseIsLiquid,sat%is_ch3b)
+  CALL TRIAL_G_AND_W0(options%sim_aux%LUT)
   CALL READ_ALBEDO_LUT(options%sim_aux%LUT%ice%albedo,'ICE',options)
   CALL READ_ALBEDO_LUT(options%sim_aux%LUT%water%albedo,'WAT',options)
   ! --------- LUT
@@ -223,8 +223,8 @@ PROGRAM CLOUD_CCI_SIMULATOR
      ! ------------
      ! Check if daily netcdf file is already there
      sim%netcdf_file = BUILD_FILENAME(options%paths%sim_output_regexp,&
-          sim=simulator,model=options%model,y=year,m=month,d=iday,&
-          sat=options%L2b%satellite,node=options%L2b%node,check=.FALSE.)
+          CDR=options%CDR,model=options%model,y=year,m=month,d=iday,&
+          sat=options%L2b%satellite,node=options%L2b%node)
 
      IF ( CHECK_FILE(sim%netcdf_file) .AND. .NOT. options%overwrite_existing) THEN
         PRINT '(a,a)',"file already exists:",TRIM(sim%netcdf_file)
@@ -234,9 +234,9 @@ PROGRAM CLOUD_CCI_SIMULATOR
      ! ------
      ! Restart these at the end of every full day
 
-     CALL INITIALISE_CLOUD_CCI(cloud_cci,ngrids,n_pbins,n_tbins)
-     CALL INITIALISE_SIM_INPUT(sub,options,ngrids,nlev,model%aux%lat)
-     CALL INITIALISE_SIMULATOR(sim,ngrids)
+     CALL INITIALISE_CLOUD_CCI(cloud_cci,ng,n_pbins,n_tbins)
+     CALL INITIALISE_SIM_INPUT(sub,options,ng,nl,model%aux%lat)
+     CALL INITIALISE_SIMULATOR(sim,ng)
      CALL SET_TIMESTEP(sim,model%aux,options,iday,t1,t2)
 
      DO itime = t1,t2
@@ -279,54 +279,54 @@ PROGRAM CLOUD_CCI_SIMULATOR
         ! local solar time
         !
         sim%time_of_day=TOD
-        LST(1:ngrids) = &
+        LST(1:ng) = &
              & MERGE(sat%overpass,&
-             MOD(utc+24._wp/360._wp*RESHAPE(model%aux%lon,(/ngrids/)),24._wp),L2b)
+             MOD(utc+24._wp/360._wp*RESHAPE(model%aux%lon,(/ng/)),24._wp),L2b)
         
-        sub%solzen(1:ngrids) = &
-             SOLAR_ZENITH_ANGLE(model%aux%lat_v(1:ngrids),day_of_year,&
-             LST(1:ngrids),ngrids)
+        sub%solzen(1:ng) = &
+             SOLAR_ZENITH_ANGLE(model%aux%lat_v(1:ng),day_of_year,&
+             LST(1:ng),ng)
 
         WHERE (sub%solzen .LE. options%daynight%daylim)
-           sub%sunlit(1:ngrids) = 1
+           sub%sunlit(1:ng) = 1
         END WHERE
 
         ! ------------------- END finding mask
 
         ! Need to immediately clear away bad values
-        CALL CORRECT_MODEL_CLOUD_FRACTION(model,ngrids,nlev,nc)
+        CALL CORRECT_MODEL_CLOUD_FRACTION(model,ng,nl,nc)
 
-        CALL CALC_MODEL_VERTICAL_PROPERTIES(ngrids,nlev,model,sub,options)
+        CALL CALC_MODEL_VERTICAL_PROPERTIES(ng,nl,model,sub,options)
 
-        CALL GET_MODEL_SSA_AND_G(sub,sat,ngrids,nlev,options%sim_aux%LUT)
+        CALL GET_MODEL_SSA_AND_G(sub,options%sim_aux%LUT,ng,nl)
 
         ! ------ get corrected temperature profile -----
         !   not doing anything to correct the profile in
         !   this simulator. The surface is included in profile
-        sub%Tcorr(1:ngrids,1:nlev) = model%T  (1:ngrids,1:nlev)
-        sub%Tcorr(1:ngrids,nlev+1) = model%T2M(1:ngrids)
+        sub%Tcorr(1:ng,1:nl) = model%T  (1:ng,1:nl)
+        sub%Tcorr(1:ng,nl+1) = model%T2M(1:ng)
         ! ----------
 
-        sub%inversion_layers(1:ngrids,1:nlev) = &
-             FIND_TEMPERATURE_INVERSIONS(sub,options,ngrids,nlev)
+        sub%inv_layers(1:ng,1:nl) = &
+             FIND_TEMPERATURE_INVERSIONS(sub,options,ng,nl)
 
         IF (options%dbg>0) THEN
-           CALL CHECK_VARIABLES(ngrids,nlev,options,sub%data_mask,model,sub)
+           CALL CHECK_VARIABLES(ng,nl,options,sub%data_mask,model,sub)
         END IF
 
-        CALL GET_SUBCOLUMNS(ngrids,nc,nlev,model%PSURF,&
-             model%CC,model%CV,frac_out(1:ngrids,1:nc,1:nlev),&
+        CALL GET_SUBCOLUMNS(ng,nc,nl,model%PSURF,&
+             model%CC,model%CV,frac_out(1:ng,1:nc,1:nl),&
              options%subsampler)
 
         PRINT *, '---------- looping over grid points'
-        DO d1 = 1,ngrids
+        DO d1 = 1,ng
 
            ! empty internal
-           CALL INITIALISE_INTERNAL_SIMULATOR(inter,nc,nlev,options)
+           CALL INITIALISE_INTERNAL_SIMULATOR(inter,nc,nl,options)
 
            frac_out2=frac_out(d1,:,:)
 
-           CALL GET_CLOUD_MICROPHYSICS(d1,nc,nlev,frac_out2,&
+           CALL GET_CLOUD_MICROPHYSICS(d1,nc,nl,frac_out2,&
                 inter,sub,options)
 
            DO ins = 1,nc
@@ -335,16 +335,16 @@ PROGRAM CLOUD_CCI_SIMULATOR
 
               ! the CTTH routines need some rewriting if I want to
               ! avoid the loop
-              CALL CTTH(d1,ins,nlev,sub,inter)
+              CALL CTTH(d1,ins,nl,sub,inter)
 
               IF (sub%sunlit(d1).EQ.1) THEN
                 ! consider moving water and ice together to avoid if-statement."
                  IF (inter%cph(ins) .EQ. 1) THEN
-                    inter%reff(ins) = CLOUD_EFFECTIVE_RADIUS(d1,ins,nlev,&
+                    inter%reff(ins) = CLOUD_EFFECTIVE_RADIUS(d1,ins,nl,&
                          sub,inter,options%sim_aux%LUT%water%optics)
                     alb = options%sim_aux%LUT%water%albedo
                  ELSEIF (inter%cph(ins) .EQ. 2) THEN
-                    inter%reff(ins) = CLOUD_EFFECTIVE_RADIUS(d1,ins,nlev,&
+                    inter%reff(ins) = CLOUD_EFFECTIVE_RADIUS(d1,ins,nl,&
                          sub,inter,options%sim_aux%LUT%ice%optics)
                     alb = options%sim_aux%LUT%ice%albedo
                  END IF
@@ -386,14 +386,14 @@ PROGRAM CLOUD_CCI_SIMULATOR
 
            CALL GRID_AVERAGE(d1,sub,inter,nc,cloud_cci%av)
 
-        END DO ! end ngrids
+        END DO ! end ng
         IF (options%dbg>0) CALL CHECK_GRID_AVERAGES(model,sub,options,cloud_cci%av)
 
         IF (need2Average) THEN
            ! I need to save the sum and number of elements for all
            ! variables and empty them after each time step
            ! make_grid average is really made for only one value per grid per day
-           CALL DAY_ADD(cloud_cci,sub,ngrids,n_pbins,n_tbins)
+           CALL DAY_ADD(cloud_cci,sub,ng,n_pbins,n_tbins)
         END IF
 
         CALL SYSTEM_CLOCK(endTime)
@@ -406,7 +406,7 @@ PROGRAM CLOUD_CCI_SIMULATOR
         ! I need to save the sum and number of elements for all
         ! variables and empty them after each time step
         ! make_grid average is really made for only one value per grid per day
-        CALL DAY_AVERAGE(cloud_cci,ngrids)
+        CALL DAY_AVERAGE(cloud_cci,ng)
         CALL CHECK_GRID_AVERAGES(model,sub,options,cloud_cci%av)
      END IF
 

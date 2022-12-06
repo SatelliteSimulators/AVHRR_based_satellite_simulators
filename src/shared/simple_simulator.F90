@@ -142,9 +142,9 @@ CONTAINS
     ! FIND_TEMPERATUREINVERSIONS() ensures that the tropopause is
     ! between 500-50hPa. But if the function was never called, use nlev
 
-    IF (ANY(sub%inversion_layers(d1,1:nlev) > 0)) THEN
-       trop_lev = MINVAL(sub%inversion_layers(d1,1:nlev),&
-            mask=sub%inversion_layers(d1,1:nlev) > 0)
+    IF (ANY(sub%inv_layers(d1,1:nlev) > 0)) THEN
+       trop_lev = MINVAL(sub%inv_layers(d1,1:nlev),&
+            mask=sub%inv_layers(d1,1:nlev) > 0)
     ELSE
        trop_lev = 1 ! top of the atmosphere
     END IF

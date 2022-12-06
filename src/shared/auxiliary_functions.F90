@@ -359,13 +359,6 @@ CONTAINS
        isinteger = .TRUE.
        WRITE(description,'(A)') ""
        WRITE(long_name,'(A)') "GRIB Definition Block2"
-    CASE ('detection_limit')
-       units = ""
-       WRITE(description,'(A)') "optical depth values above which 50%&
-            & or more of clouds are detected"
-       WRITE(long_name,'(A)') "detection_limit"
-       valid_min=0
-       valid_max=100
     CASE ('dtg')
        units = "yyyymmddhh"
        isinteger = .TRUE.
@@ -1058,7 +1051,9 @@ CONTAINS
     ! out
     INTEGER, DIMENSION(ngrids,nlev) :: inversions
 
-    trop_lev                    = 1 ! need to put it at the top for if no tropopause is found
+    PRINT *, "--- Finding temperature inversions"
+    
+    trop_lev                    = 1 ! put at the top if no tropopause is found
     inversion_pressure          = -999._wp
     inversions(1:ngrids,1:nlev) = 0
     clara_tropopauseThickness   = MAX(2,nlev/30)
@@ -1071,7 +1066,6 @@ CONTAINS
 
     DO d1 = 1,ngrids
        DO inl = nlev,2,-1
-
           IF ( sub%Tcorr(d1,inl) .GE. sub%Tcorr(d1,inl+1) ) THEN
              ! 
              ! You are in an inversion
@@ -1148,19 +1142,16 @@ CONTAINS
 
     ! temporary arrays
     REAL(wp) :: out_lon(nlon),out_lat(nlat)
-
     REAL(wp), ALLOCATABLE ::out_data2(:,:),  tmp_out_data2(:,:)
     REAL(wp), ALLOCATABLE ::out_data3(:,:,:),tmp_out_data3(:,:,:)    
     REAL(wp) :: tmp_out_lon(nlon) 
     LOGICAL  :: model_lat_descend,data_lat_descend,model_lon_180,data_lon_180
     LOGICAL  :: loncond1,loncond2,latcond1,latcond2,workOnLat,workOnLon
-
     REAL(wp), PARAMETER :: BigNum= 999._wp
     REAL(wp), PARAMETER :: fill  =-999._wp
     INTEGER             :: i
     INTEGER             :: ind(1)
     LOGICAL             :: dim2
-
 
     ! initialise all
     out_lon      = fill
@@ -1234,7 +1225,6 @@ CONTAINS
     loncond1  = model_lon_180 .AND. .NOT.data_lon_180
     loncond2  = .NOT.model_lon_180 .AND. data_lon_180
     workOnLon = loncond1 .OR. loncond2
-
     IF (workOnLon) THEN
        IF (loncond1) tmp_out_lon = MERGE(lon-360, lon, lon .GT. 180)
        IF (loncond2) tmp_out_lon = MERGE(lon+360, lon, lon .LT. 0  )

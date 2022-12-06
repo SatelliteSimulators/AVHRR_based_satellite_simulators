@@ -33,8 +33,13 @@ options can be used.
 
 *) Any bug discoveries or suggestions can be sent to salomon.eliasson@smhi.se
 
+REQUIREMENTS:
+
+- Needs access to netcdf libraries
+- Need access to a netcdf land sea mask. For example, make a symlink in the top level data/ directory and call it land_sea_mask.nc
 
 INSTRUCTIONS:
+
 
 *) The code can be compiled using ifort or gfortan using 'make clara'
 

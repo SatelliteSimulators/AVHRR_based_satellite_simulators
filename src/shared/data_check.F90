@@ -377,8 +377,8 @@ CONTAINS
     inv_ind = 1
     inversion(1:nlev) = -999
     DO inl = nlev,1,-1
-       IF (S%inversion_layers(d1,inl) .GT. 0) THEN
-          inversion(inv_ind) = S%inversion_layers(d1,inl)
+       IF (S%inv_layers(d1,inl) .GT. 0) THEN
+          inversion(inv_ind) = S%inv_layers(d1,inl)
           inv_ind = inv_ind+1
        END IF
     END DO
