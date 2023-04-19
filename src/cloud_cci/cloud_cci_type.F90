@@ -15,11 +15,7 @@ MODULE CLOUD_CCI_M
        NAMELIST_MICROPHYS,       &
        NAME_LIST,                &
        VARIABLESCONTAINER
-  USE OPTICS_M,            ONLY: &
-       DEALLOCATE_OPTICS,        &
-       NUM_TRIAL_RES,            &
-       OPTICS_LUT,               &
-       SIM_AUX
+  USE OPTICS_M,            ONLY: NUM_TRIAL_RES
 
   IMPLICIT NONE
 

@@ -290,7 +290,6 @@ CONTAINS
 
     ! internal
     REAL(wp), DIMENSION(ng,nl) :: water_g,ice_g,water_w0,ice_w0
-    integer :: i,j !debugging
     
     PRINT *, "--- Calculating model cloud optical properties"
 

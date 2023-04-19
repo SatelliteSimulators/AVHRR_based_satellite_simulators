@@ -97,7 +97,8 @@ CONTAINS
     CALL check( nf90_put_att(ncid,nf90_global,"Institute" ,"SMHI"))
     CALL check( nf90_put_att(ncid,nf90_global,"Simulator version" ,O%simVersionNumber))
     CALL check( nf90_put_att(ncid,nf90_global,"Simulated Climate data record" ,O%CDR))
-    
+    CALL check( nf90_put_att(ncid,nf90_global,'model',O%model))
+   
     ! creation
     CALL DATE_AND_TIME(values=date_time)
     utc(1) = FLOOR((REAL(60*date_time(5)+date_time(6)-date_time(4)))/60)
@@ -107,10 +108,6 @@ CONTAINS
          utc(1),':',utc(2),'UTC'
     CALL check( nf90_put_att(ncid,nf90_global,"Creation date",creation))
 
-    ! technical specs
-    string='CLARA-A2'
-    CALL check( nf90_put_att(ncid,nf90_global,'simulated dataset',TRIM(string)))
-    CALL check( nf90_put_att(ncid,nf90_global,'model',O%model))
 
     SELECT CASE (O%subsampler)
     CASE (0)
@@ -162,15 +159,15 @@ CONTAINS
     CALL check( nf90_def_dim(ncid,'tau_bnds',n_tbins+1,tauid2) )
     CALL check( nf90_def_dim(ncid,'pres_bnds',n_pbins+1,prsid2) )
     CALL check( nf90_def_dim(ncid,'phase',2,phaseid) )
-    IF (O%cloudMicrophys%cf_method.EQ.1) THEN
-       CALL check( nf90_def_dim(ncid,'pod_bins',&
-            SIZE(O%sim_aux%POD_tau_bin_centers),podid) )
-       CALL check( nf90_def_dim(ncid,'pod_bnds',&
-            SIZE(O%sim_aux%POD_tau_bin_edges),podid2) )
-    END IF
-    IF (O%cloudMicrophys%cf_method.GT.0) THEN
-       CALL check( nf90_def_dim(ncid,'sunlit',2,sunid) )
-    END IF
+!    IF (O%cloudMicrophys%cf_method.EQ.1) THEN
+!       CALL check( nf90_def_dim(ncid,'pod_bins',&
+!            SIZE(O%sim_aux%POD_tau_bin_centers),podid) )
+!       CALL check( nf90_def_dim(ncid,'pod_bnds',&
+!            SIZE(O%sim_aux%POD_tau_bin_edges),podid2) )
+!    END IF
+!    IF (O%cloudMicrophys%cf_method.GT.0) THEN
+!       CALL check( nf90_def_dim(ncid,'sunlit',2,sunid) )
+!    END IF
     IF  (O%sim%doModel) THEN
        CALL check( nf90_def_dim(ncid,'levels',lz,lvlid) )
     END IF
@@ -239,10 +236,10 @@ CONTAINS
        CALL addVariable(ncid,'hist2d_ctp_bin_border',O,A,prsid2)
        CALL addVariable(ncid,'hist2d_cot_bin_border',O,A,tauid2)
     END IF
-    IF (ALLOCATED(O%sim_aux%POD_layers)) THEN 
-       CALL addVariable(ncid,'POD_tau_bin_centers',O,A,podid ,clara=clara)
-       CALL addVariable(ncid,'POD_tau_bin_edges',  O,A,podid2,clara=clara)
-    END IF
+!    IF (ALLOCATED(O%sim_aux%POD_layers)) THEN 
+!       CALL addVariable(ncid,'POD_tau_bin_centers',O,A,podid ,clara=clara)
+!       CALL addVariable(ncid,'POD_tau_bin_edges',  O,A,podid2,clara=clara)
+!    END IF
     ! END auxiliary
     ! --------------------------------
 
@@ -268,8 +265,8 @@ CONTAINS
 
     IF (V%hist2d_cot_ctp) &
          CALL addVariable(ncid,'hist2d_cot_ctp',O,A,lnid,ltid,tauid,prsid,phaseid,tid,clara=clara)
-    IF (ALLOCATED(O%sim_aux%POD_layers)) &
-         CALL addVariable(ncid,'POD_layers',O,A,lnid,ltid,podid,sunid,tid,clara=clara)
+!    IF (ALLOCATED(O%sim_aux%POD_layers)) &
+!         CALL addVariable(ncid,'POD_layers',O,A,lnid,ltid,podid,sunid,tid,clara=clara)
 
     CALL check (nf90_close(ncid) )
 
@@ -378,10 +375,10 @@ CONTAINS
        CALL putVar(ncid,varid,A,O%ctp_tau%tbin_centre)
     CASE ('hist_phase')
        CALL putVar(ncid,varid,A,O%ctp_tau%hist_phase)
-    CASE ('POD_tau_bin_centers')
-       CALL putVar(ncid,varid,A,O%sim_aux%POD_tau_bin_centers)
-    CASE ('POD_tau_bin_edges')
-       CALL putVar(ncid,varid,A,O%sim_aux%POD_tau_bin_edges)
+!    CASE ('POD_tau_bin_centers')
+!       CALL putVar(ncid,varid,A,O%sim_aux%POD_tau_bin_centers)
+!    CASE ('POD_tau_bin_edges')
+!       CALL putVar(ncid,varid,A,O%sim_aux%POD_tau_bin_edges)
     CASE ('rlon')
        CALL putVar(ncid,varid,A,A%rlon)
     CASE ('rlat')
@@ -429,8 +426,8 @@ CONTAINS
        CALL putVar(ncid,varid,A,clara%av%iwp)
     CASE ('lwp')
        CALL putVar(ncid,varid,A,clara%av%lwp)
-    CASE ('POD_layers')
-       CALL putVar(ncid,varid,A,data3=O%sim_aux%POD_layers)
+!    CASE ('POD_layers')
+ !      CALL putVar(ncid,varid,A,data3=O%sim_aux%POD_layers)
     CASE ('hist2d_cot_ctp')
        CALL putVar(ncid,varid,A,data4=clara%av%hist2d_cot_ctp)
     CASE ('ref_liq')

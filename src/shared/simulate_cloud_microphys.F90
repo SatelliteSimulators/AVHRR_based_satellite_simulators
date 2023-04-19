@@ -412,12 +412,12 @@ CONTAINS
     CASE(1)
 
        ! Combine the information on the probability of detection for a
-       ! geographical location and for a optical depth interval. Most
-       ! of the time the POD is higher the higher the optical depth
-       ! bin. The column is considered cloudy if a random number
+       ! geographical location and for a optical depth
+       ! interval. Mostly, the POD is higher the higher the optical
+       ! depth. The column is considered cloudy if a random number, x, 
        ! assigned to the (lon,lat,column) before the simulation is
-       ! higher than x>(POD -1). I.e., the higher the POD the more
-       ! likely this cloud is classed as cloudy. The POD is provided
+       ! higher than x>(1-POD). I.e., the higher the POD the more
+       ! likely this cloud is classified as cloudy. The POD is provided
        ! based on comprehensive comparisons between the satellite
        ! dataset and Calipso data which is tightly collocated with the
        ! data (Karlsson & Håkansson 2018)

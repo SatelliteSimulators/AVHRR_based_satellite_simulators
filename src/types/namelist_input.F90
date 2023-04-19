@@ -23,7 +23,7 @@ MODULE namelist_input
      ! ------- Paths -------
      !
      !  dailyFiles : Whether or not the input files are daily or monthly
-     !  model_input_regexp:
+     !  model_input:
      !             Is the full path to the model input files. Use
      !             the following keywords in the regular expression
      !             #SIM='sim',#MODEL=options%model(A),#Y4=year(i4),#M2=month(i2),
@@ -31,21 +31,19 @@ MODULE namelist_input
      !             #NODE=string,#VERSION=string,#STRING=string
      !             (e.g. "/some/where/#Y4/#M2/#D2/file_#Y4#M2#D2.nc", where  
      !               Y4=year (i0.4),M2=month (i0.2), and D2=day (i0.2)
-     !  sim_output_regexp : 
+     !  sim_output : 
      !             Same as story as model_input_regexp, but for the output NETCDF files
 
-     CHARACTER(len=1000) :: sim_output_regexp,model_input_regexp
+     CHARACTER(len=1000) :: sim_output, model_input
      LOGICAL             :: dailyFiles
   END TYPE paths
   TYPE epoch
      ! ------ EPOCH -------
      !  year	: year to run
      !  month	: month to run
-     !  day1	: first day to loop over
-     !  day2  	: last day to loop over
+     !  day	: day to loop over
 
-     INTEGER :: year, month
-     INTEGER :: day1, day2
+     INTEGER :: year, month, day
   END TYPE epoch
   TYPE L2b
 
@@ -190,7 +188,7 @@ MODULE namelist_input
      !                        (cloud_cci, clara_a2, clara_a3)
       
      INTEGER                 :: dbg
-     CHARACTER(len=1000)     :: model
+     CHARACTER(len=100)      :: model
      CHARACTER(len=1000)     :: namelist_file
      INTEGER                 :: ncols
      LOGICAL                 :: overwrite_existing
@@ -212,21 +210,18 @@ CONTAINS
 
     CHARACTER(len=*),INTENT(in)    :: file
     TYPE(name_list), INTENT(inout) :: x
-    INTEGER                        :: year, month, day1, day2
-    CHARACTER(len=1000)            :: model_name
-    CHARACTER(len=1000)            :: model_input_regexp,sim_output_regexp
+    INTEGER                        :: year, month, day
+    CHARACTER(len=10)              :: model_name
+    CHARACTER(len=1000)            :: model_input,sim_output
     CHARACTER(len=10)              :: CDR
     INTEGER                        :: dbg,subsampler
     LOGICAL                        :: exists,dailyFiles,overwrite_existing,use_satellite
 
-    NAMELIST/epoch/year,month,day1,day2
-    NAMELIST/paths/CDR,model_name,&
-         model_input_regexp,sim_output_regexp,&
-         dailyFiles
+    NAMELIST/epoch/year,month,day
+    NAMELIST/paths/CDR,model_name,model_input,sim_output,dailyFiles
     NAMELIST/other/dbg,overwrite_existing,subsampler,use_satellite
 
-    day1=-999
-    day2=-999
+    day=-999
     exists = .TRUE.
     INQUIRE(FILE=TRIM(file), EXIST=exists)
     IF (.NOT. exists) THEN
@@ -238,8 +233,6 @@ CONTAINS
     OPEN(10,file=file,status='old')
 
     READ(10,epoch)
-    IF (day1.LT.1) day1=1
-    IF (day2.LT.1) day2=DAYSINMONTH(year,month)
     REWIND(10)
     READ(10,paths)
     REWIND(10)
@@ -247,20 +240,22 @@ CONTAINS
     REWIND(10)
     CLOSE(10) 
 
-    X%epoch%year               = year
-    X%epoch%month              = month
-    X%epoch%day1               = day1
-    X%epoch%day2               = day2
-    X%namelist_file            = file
-    X%CDR                      = CDR
-    X%model                    = model_name
-    X%paths%model_input_regexp = model_input_regexp
-    X%paths%sim_output_regexp  = sim_output_regexp
-    X%paths%dailyFiles         = dailyFiles
-    X%dbg                      = dbg
-    X%subsampler               = subsampler
-    X%overwrite_existing       = overwrite_existing
-    
+    X%epoch%year          = year
+    X%epoch%month         = month
+    X%epoch%day           = day
+    X%namelist_file       = TRIM(file)
+    X%CDR                 = TRIM(CDR)
+    X%model               = TRIM(model_name)
+    X%paths%model_input   = TRIM(model_input)
+    X%paths%sim_output    = TRIM(sim_output)
+    X%paths%dailyFiles    = dailyFiles
+    X%dbg                 = dbg
+    X%subsampler          = subsampler
+    X%overwrite_existing  = overwrite_existing
+
+    print*,trim(sim_output)
+    print*,trim(X%paths%sim_output)
+ 
     IF (use_satellite) THEN
        CALL namelist_satellite(x,file)
     ELSE
@@ -269,7 +264,7 @@ CONTAINS
         X%L2b%node             = ''
         X%L2b%satellite        = 'none'
     END IF
-
+    
   END SUBROUTINE common_namelist
 
   SUBROUTINE deallocate_namelist(options)

@@ -107,6 +107,8 @@ CONTAINS
     REAL(wp), ALLOCATABLE         :: tmp3(:,:,:)
     INTEGER                       :: len
     CHARACTER(1000)               :: filename
+    CHARACTER(100)                :: varstr
+    CHARACTER(10)                 :: season
     LOGICAL                       :: need2Average
 
     need2Average = (.NOT.options%L2b%doL2bSampling .OR. options%L2b%node.EQ."all")
@@ -115,9 +117,6 @@ CONTAINS
     n_tbins = options%ctp_tau%n_tbins
     n_pbins = options%ctp_tau%n_pbins
     ncol    = options%ncols
-
-    WRITE(filename, '(A)') &
-         'data/microphysics/CLARA/cloud_properties/cloud_mask_limits.nc'
 
     CALL ALLOCATE_CLARA_SIM(clara%av,options,ngrids,n_pbins,n_tbins)
 
@@ -132,10 +131,21 @@ CONTAINS
 
     END IF
 
+    WRITE(filename, '(A,A,A)') &
+         'data/microphysics/CLARA/cloud_properties/cloud_mask_limits_',&
+         TRIM(options%CDR),'.nc'
+    
     ! THIS NEEDS TO BE HERE BECAUSE IT IS ONLY FOR CLARA SO FAR
     SELECT CASE (options%cloudMicrophys%cf_method)
 
-    CASE(1)
+    CASE(1) ! We now only deal with POD
+
+       ! CLARA-A3: Based on half-yearly statistics
+       !           separated for day and night based on matchups
+       !           between noaa18 and noaa19 and CALIPSO (5km collocated)
+       ! CLARA-A2: Based on total statistics
+       !           separated for day and night based on matchups
+       !           between noaa18 and noaa19 and CALIPSO (3km collocated)
 
        CALL AUX_DATA(filename,'COT_edges',strDim1='COT_edges',&
             data1D=options%sim_aux%POD_tau_bin_edges,dbg=options%dbg)
@@ -148,14 +158,34 @@ CONTAINS
 
        ALLOCATE (options%sim_aux%POD_layers (ngrids,len,2))
 
+       ! Årstiden summer är här definierat som april till september
+       ! och winter oktober till mars.
+
+       IF (options%CDR.EQ.'clara-a3')THEN
+          IF (options%epoch%month.GE.4 .AND. options%epoch%month.LE.9) THEN
+             season='NHsummer'
+          ELSE
+             season='NHwinter'
+          END IF
+       ELSEIF (options%CDR.EQ.'clara-a2')THEN
+          season='year'
+       ELSE
+          STOP "I only know of clara-a2 and clara-a3. Fix CDR name"
+       END IF
+
+       WRITE (*,'(5(A,x))') &
+            " --- Getting POD values based on",TRIM(season),"season for ",TRIM(options%CDR),"CDR"
+
        ! NIGHT values
-       CALL AUX_DATA(filename,'POD_night','lon','lat',strDim3='COT_centers',&
+       WRITE(varstr,'(A,A)') 'POD_NIGHT_',season
+       CALL AUX_DATA(filename,TRIM(varstr),'lon','lat',strDim3='COT_centers',&
             data3D=tmp3,conform2model=.TRUE.,aux=aux,dbg=options%dbg)
 
        options%sim_aux%POD_layers(:,:,1) = RESHAPE(tmp3,(/ngrids,len/))
 
        ! Day values
-       CALL AUX_DATA(filename,'POD_day','lon','lat',strDim3='COT_centers',&
+       WRITE(varstr,'(A,A)') 'POD_DAY_',season
+       CALL AUX_DATA(filename,TRIM(varstr),'lon','lat',strDim3='COT_centers',&
             data3D=tmp3,conform2model=.TRUE.,aux=aux,dbg=options%dbg)
 
        options%sim_aux%POD_layers(:,:,2) = RESHAPE(tmp3,(/ngrids,len/))

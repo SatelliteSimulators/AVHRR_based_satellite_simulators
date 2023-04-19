@@ -849,7 +849,7 @@ CONTAINS
 
     SELECT CASE (TRIM(options%L2b%satellite))
     CASE ('noaa6','noaa7','noaa8','noaa9','noaa10','noaa11','noaa12',&
-         'noaa13','noaa14','noaa15','noaa16','noaa17','noaa18','noaa19')
+         'noaa14','noaa15','noaa16','noaa17','noaa18','noaa19')
        sat = TO_UPPER(TRIM(options%L2b%satellite))
        IF (sat.EQ.'NOAA6') sat="NOAA6 doesn't have any albedo files"
        IF (sat.EQ.'NOAA7') sat='NOAA07'

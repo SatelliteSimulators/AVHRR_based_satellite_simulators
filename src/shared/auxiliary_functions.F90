@@ -582,7 +582,7 @@ CONTAINS
        valid_max=1
     CASE ('lreff','cer_liq','ref_liq')
        units = "micron"
-       WRITE(description,'(A)') "simulated liquid effective radiusd"
+       WRITE(description,'(A)') "simulated liquid effective radius"
        WRITE(long_name,'(A)') "liquid effective radius" 
        valid_min=1
        valid_max=155

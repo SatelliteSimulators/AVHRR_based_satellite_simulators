@@ -29,7 +29,7 @@ MODULE simulator_variables
   ! 'epoch'     = days since 1970/1/1
 
   TYPE satellite_simulator
-     CHARACTER(len=1000)   :: netcdf_file
+     CHARACTER(len=200)    :: netcdf_file
      INTEGER               :: epoch
      INTEGER               :: date,dtg
      INTEGER               :: fvi = -999
@@ -96,7 +96,7 @@ CONTAINS
 
     IF (options%paths%dailyFiles) THEN
        aux%netcdf_file = BUILD_FILENAME(&
-            options%paths%model_input_regexp,y=year,m=month,d=iday)
+            options%paths%model_input,y=year,m=month,d=iday)
        IF (ALLOCATED(aux%time)) DEALLOCATE(aux%time)
        CALL get_model_aux(aux, options, .TRUE.) ! .true. means to get 'time' only
        t1 = 1

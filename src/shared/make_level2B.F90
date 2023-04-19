@@ -78,7 +78,7 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
        isL2b_2(ngrids,nlev))
 
   interpolate = options%L2b%interpolate
-  rx          = options%paths%model_input_regexp  
+  rx          = options%paths%model_input  
   deltaTime   = aux%ref%deltaTime
   nsteps      = itime_end-itime_start+1
 
@@ -99,7 +99,7 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
   !     Put together the data
   !
   ! ==============================
-  fileDay = BUILD_FILENAME(options%paths%model_input_regexp,&
+  fileDay = BUILD_FILENAME(options%paths%model_input,&
        year,month,iday, model=options%model)
 
   ! --------------------
