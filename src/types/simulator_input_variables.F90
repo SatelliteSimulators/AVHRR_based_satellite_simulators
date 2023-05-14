@@ -11,7 +11,7 @@ MODULE simulator_input_variables
   IMPLICIT NONE
 
   PUBLIC :: allocate_sim_input, &
-       initialise_sim_input, & 
+       initialise_sim_input, &
        deallocate_sim_input
 
   ! -----------------
@@ -76,7 +76,6 @@ MODULE simulator_input_variables
      REAL(wp),ALLOCATABLE, DIMENSION(:,:) :: p_int
      REAL(wp),ALLOCATABLE, DIMENSION(:,:) :: p_mid
      REAL(wp),ALLOCATABLE, DIMENSION(:,:) :: Q_kgm2
-     REAL(wp),ALLOCATABLE, DIMENSION(:)   :: satzen
      REAL(wp),ALLOCATABLE, DIMENSION(:)   :: solzen
      INTEGER, ALLOCATABLE, DIMENSION(:)   :: surfType
      REAL(wp),ALLOCATABLE, DIMENSION(:)   :: surf_irradiance
@@ -115,8 +114,8 @@ contains
          sub%isL2b            (ngrids       ),&
          sub%lreff            (ngrids,nlev  ),&
          sub%ltau             (ngrids,nlev  ),&
-         sub%lwc              (ngrids,nlev-1),&    
-         sub%lwp              (ngrids,nlev  ),&    
+         sub%lwc              (ngrids,nlev-1),&
+         sub%lwp              (ngrids,nlev  ),&
          sub%p_int            (ngrids,nlev+1),&
          sub%p_mid            (ngrids,nlev  ),&
          sub%tau              (ngrids,nlev  ),&
@@ -135,11 +134,10 @@ contains
        ALLOCATE( sub%g0          (ngrids,nlev    ),&
             sub%w0          (ngrids,nlev    ) )
     END IF
-    IF (options%sim%doCLARA .OR. options%sim%doRTTOV) THEN
-       ALLOCATE( sub%satzen      (ngrids         ),&
-            sub%surfType    (ngrids         ),&
-            sub%waterType   (ngrids         ) )
-    END IF
+   IF (options%sim%doCLARA .OR. options%sim%doRTTOV) THEN
+      ALLOCATE(sub%surfType    (ngrids         ),&
+               sub%waterType   (ngrids         ) )
+   END IF
 
   END SUBROUTINE allocate_sim_input
   SUBROUTINE initialise_sim_input(sub,options,ngrids,nlev,lat,sat)
@@ -165,8 +163,8 @@ contains
     sub%isL2b           (1:ngrids          )= .FALSE.
     sub%lreff           (1:ngrids,1:nlev   )= -999._wp
     sub%ltau            (1:ngrids,1:nlev   )= 0._wp
-    sub%lwc             (1:ngrids,1:nlev-1 )= 0._wp    
-    sub%lwp             (1:ngrids,1:nlev   )= 0._wp    
+    sub%lwc             (1:ngrids,1:nlev-1 )= 0._wp
+    sub%lwp             (1:ngrids,1:nlev   )= 0._wp
     sub%p_int           (1:ngrids,1:nlev+1 )= -999._wp
     sub%p_mid           (1:ngrids,1:nlev   )= -999._wp
     sub%tau             (1:ngrids,1:nlev   )= 0._wp
@@ -186,39 +184,8 @@ contains
        sub%w0             (1:ngrids,1:nlev   )= -999._wp
     END IF
     IF (options%sim%doCLARA .OR. options%sim%doRTTOV) THEN
-       sub%satzen         (1:ngrids          )= -999._wp
        sub%surfType       (1:ngrids          )= -999
        sub%waterType      (1:ngrids          )= -999
-
-
-       IF (PRESENT(sat)) THEN
-          IF (ALLOCATED(sat%zonal_mean_satzen)) THEN
-             ! The latitude grid of the model might not match the latitude
-             ! grid of the satellite zenith angles. Therefore do a linear
-             ! interpolation
-
-
-             ! take care of the edges
-             ! -----------
-             WHERE (lat>=sat%latitudes(1))
-                sub%satzen= sat%zonal_mean_satzen(1)
-             ELSEWHERE (lat<sat%latitudes(sat%nlat))
-                sub%satzen = sat%zonal_mean_satzen(sat%nlat)
-             END WHERE
-             !
-             ! -----------
-
-             DO jlat = 2,sat%nlat
-                WHERE ((lat>=sat%latitudes(jlat)) .AND. (lat<sat%latitudes(jlat-1)))
-                   sub%satzen = sat%zonal_mean_satzen(jlat-1) + &
-                        (sat%zonal_mean_satzen(jlat)-sat%zonal_mean_satzen(jlat-1))*  &
-                        (lat-sat%latitudes(jlat-1))/(sat%latitudes(jlat)-sat%latitudes(jlat-1))
-                END WHERE
-             END DO
-          END IF
-       ELSE
-          PRINT *, "variable 'sat' is not present"
-       END IF
     END IF
 
   END SUBROUTINE initialise_sim_input
@@ -238,11 +205,11 @@ contains
          sub%itau             ,&
          sub%iwc              ,&
          sub%iwp              ,&
-         sub%isL2b            ,& 
+         sub%isL2b            ,&
          sub%lreff            ,&
          sub%ltau             ,&
-         sub%lwc              ,&    
-         sub%lwp              ,&    
+         sub%lwc              ,&
+         sub%lwp              ,&
          sub%p_int            ,&
          sub%p_mid            ,&
          sub%tau              ,&
@@ -261,8 +228,7 @@ contains
             sub%w0 )
     END IF
     IF (options%sim%doCLARA .OR. options%sim%doRTTOV) THEN
-       DEALLOCATE( sub%satzen    ,&
-            sub%surfType  ,&
+       DEALLOCATE(Sub%surfType  ,&
             sub%waterType )
     END IF
 
