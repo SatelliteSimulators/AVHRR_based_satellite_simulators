@@ -53,13 +53,13 @@ PROGRAM CLARA_SIMULATOR
        DEALLOCATE_MODEL_MATRIX,       &
        GET_MODEL_AUX,                 &
        INITIALISE_MODEL_MATRIX,       &
-       MODEL_TYPE,                    &                 
+       MODEL_TYPE,                    &
        READ_MODEL
   USE MY_MATHS,                  ONLY:&
        DAYOFYEAR
   USE NAMELIST_INPUT,            ONLY:&
        DEALLOCATE_NAMELIST,           &
-       NAME_LIST                      
+       NAME_LIST
   USE OPTICS_M,                  ONLY:&
        DEALLOCATE_OPTICS,             &
        POPULATE_EFFECTIVE_RADIUS_LUT
@@ -157,8 +157,8 @@ PROGRAM CLARA_SIMULATOR
      CALL GET_MODEL_AUX(model%aux,options,.TRUE.)
   END IF
 
-  nlat = model%aux%nlat 
-  nlon = model%aux%nlon 
+  nlat = model%aux%nlat
+  nlon = model%aux%nlon
   nl   = model%aux%nlev
   ng   = model%aux%ngrids
   nc   = options%ncols
@@ -186,8 +186,8 @@ PROGRAM CLARA_SIMULATOR
   ! ----------------------------
   !          CLARA LUT's
   ! ------------------------------
-  ! 1) Get the PODS per valid for the entire period 
-  ! 2) Get the right testing G AND W0 dependent on satellite and period. 
+  ! 1) Get the PODS per valid for the entire period
+  ! 2) Get the right testing G AND W0 dependent on satellite and period.
 
   CALL ALLOCATE_CLARA(clara,options,model%aux)
 
@@ -206,7 +206,7 @@ PROGRAM CLARA_SIMULATOR
   sim%netcdf_file = BUILD_FILENAME(options%paths%sim_output,&
        CDR=options%CDR,model=options%model,y=year,m=month,d=day,&
        sat=options%L2b%satellite,node=options%L2b%node)
-  !     
+  !
   ! ------
   ! Restart these at the end of every full day
   CALL INITIALISE_CLARA(clara,options,ng)
@@ -214,141 +214,136 @@ PROGRAM CLARA_SIMULATOR
   CALL INITIALISE_SIMULATOR(sim,ng)
   CALL SET_TIMESTEP(sim,model%aux,options,day,t1,t2)
 
-  DO itime = t1,t2
+  ! start measuring the time it takes
+  CALL SYSTEM_CLOCK (startTime,clock_rate)
 
-     ! start measuring the time it takes
-     CALL SYSTEM_CLOCK (startTime,clock_rate)
+  utc = MOD(model%aux%time(itime),24._wp) + model%aux%ref%hour
+  day_of_year = DAYOFYEAR(year,month,day)
+  TOD = sim%fvr
 
-     utc = MOD(model%aux%time(itime),24._wp) + model%aux%ref%hour
-     day_of_year = DAYOFYEAR(year,month,day)
-     TOD = sim%fvr
+  ! ---------------------
+  ! -- Sample Level 2B --
+  IF (L2b) THEN
+     !The following routine makes interpolated model fields, and
+     ! a isL2b If the local time is 'x', what is that time in
+     ! UTC at that longitude?
 
-     ! ---------------------
-     ! -- Sample Level 2B --
-     IF (L2b) THEN
-        !The following routine makes interpolated model fields, and
-        ! a isL2b If the local time is 'x', what is that time in
-        ! UTC at that longitude?
+     CALL MAKE_LEVEL2B(year,month,day,t1,t2,&
+          sat%overpass,options,previous,model,TOD)
+     ! next time skip to the next day since I use t1 and t2 in the above routine
 
-        CALL MAKE_LEVEL2B(year,month,day,t1,t2,&
-             sat%overpass,options,previous,model,TOD)
-        ! next time skip to the next day since I use t1 and t2 in the above routine
+  ELSE
+     write(*,'(2(a,1x),i4,2(a,i2),a,1x,f3.0)') &
+          "reading model input for:","yr =",year,', mn =',month,&
+          ', day =',day,&
+          ', utc =',utc
+     CALL READ_MODEL(model,itime,options)
+  END IF
+  ! --------- end sampling model
 
-     ELSE
-        write(*,'(2(a,1x),i4,2(a,i2),a,1x,f3.0)') &
-             "reading model input for:","yr =",year,', mn =',month,&
-             ', day =',day,&
-             ', utc =',utc
-        CALL READ_MODEL(model,itime,options)              
+  ! --------------
+  ! local solar time
+  !
+  sim%time_of_day=TOD
+
+  LST(1:ng) = &
+       & MERGE(sat%overpass,&
+       MOD(utc+24._wp/360._wp*RESHAPE(model%aux%lon,(/ng/)),24._wp),L2b)
+
+  sub%solzen(1:ng) = &
+       SOLAR_ZENITH_ANGLE(model%aux%lat_v(1:ng),day_of_year,&
+       LST(1:ng),ng)
+
+  sub%sunlit(1:ng)=MERGE(1,0,sub%solzen .LE. options%daynight%daylim)
+
+  ! Need to immediately clear away bad values
+  CALL CORRECT_MODEL_CLOUD_FRACTION(model,ng,nl,nc)
+
+  CALL CALC_MODEL_VERTICAL_PROPERTIES(ng,nl,model,sub,options)
+
+  CALL GET_MODEL_SSA_AND_G(sub,options%sim_aux%LUT,ng,nl)
+
+  sub%Tcorr(1:ng,1:nl+1) = CORRECTED_TEMPERATURE_PROFILE(model,ng,nl)
+
+  sub%inv_layers(1:ng,1:nl) = FIND_TEMPERATURE_INVERSIONS(sub,options,ng,nl)
+
+  IF (options%dbg>0) THEN
+     CALL CHECK_VARIABLES(ng,nl,options,sub%data_mask,model,sub)
+  END IF
+
+  CALL GET_SUBCOLUMNS(ng,nc,nl,model%PSURF,&
+       model%CC,model%CV,frac_out(1:ng,1:nc,1:nl),&
+       options%subsampler)
+
+  ! ---------------------------
+  ! Loop over grid points
+  DO d1 =1,ng
+
+     ! I cannot move these 3 to outside the grid loop,
+     ! because that uses too much memory
+
+     ! empty internal
+     CALL INITIALISE_INTERNAL_SIMULATOR(inter,nc,nl,options)
+
+     frac_out2=frac_out(d1,:,:)
+     CALL GET_CLOUD_MICROPHYSICS(d1,nc,nl,frac_out2,&
+          inter,sub,options)
+
+     inter%Tb(1:nc)=TB_ICARUS(d1,nc,nl,model,sub,inter,frac_out2)
+
+     DO ins = 1,nc
+        ! --- loop over sub-columns
+        IF (inter%cflag(ins) .EQ. 0) CYCLE ! i.e., I should also
+        ! simulate very thin clouds
+
+        ! the CTTH routines need some rewriting if I want to
+        ! avoid the loop
+        CALL CTTH(d1,ins,options%CDR,model,sub,inter)
+        IF (sub%sunlit(d1).EQ.1) THEN
+           ! consider moving water and ice together to avoid if-statement."
+           IF (inter%cph(ins) .EQ. 1) THEN
+              inter%reff(ins) = CLOUD_EFFECTIVE_RADIUS(d1,ins,nl,&
+                   sub,inter,options%sim_aux%LUT%water%optics)
+           ELSEIF (inter%cph(ins) .EQ. 2) THEN
+              inter%reff(ins) = CLOUD_EFFECTIVE_RADIUS(d1,ins,nl,&
+                   sub,inter,options%sim_aux%LUT%ice%optics)
+           END IF
+        END IF
+     END DO
+     IF (sub%sunlit(d1).EQ.1) THEN
+        WHERE(inter%cflag(1:nc).GT.1)
+           inter%cwp      (1:nc) = 0.667_wp*1.e-3*&
+                inter%reff(1:nc)*&
+                inter%tau       (1:nc)*&
+                rho(inter%cph   (1:nc))
+        ELSEWHERE
+           inter%cwp(1:nc) = 0._wp
+        END WHERE
      END IF
-     ! --------- end sampling model
-
-     ! --------------
-     ! local solar time
-     !
-     sim%time_of_day=TOD
-
-     LST(1:ng) = &
-          & MERGE(sat%overpass,&
-          MOD(utc+24._wp/360._wp*RESHAPE(model%aux%lon,(/ng/)),24._wp),L2b)
-
-     sub%solzen(1:ng) = &
-          SOLAR_ZENITH_ANGLE(model%aux%lat_v(1:ng),day_of_year,&
-          LST(1:ng),ng)
-
-     sub%sunlit(1:ng)=MERGE(1,0,sub%solzen .LE. options%daynight%daylim)
-
-     ! Need to immediately clear away bad values
-     CALL CORRECT_MODEL_CLOUD_FRACTION(model,ng,nl,nc)
-
-     CALL CALC_MODEL_VERTICAL_PROPERTIES(ng,nl,model,sub,options)
-
-     CALL GET_MODEL_SSA_AND_G(sub,options%sim_aux%LUT,ng,nl)
-
-     sub%Tcorr(1:ng,1:nl+1) = CORRECTED_TEMPERATURE_PROFILE(model,ng,nl)
-
-     sub%inv_layers(1:ng,1:nl) = FIND_TEMPERATURE_INVERSIONS(sub,options,ng,nl)
 
      IF (options%dbg>0) THEN
-        CALL CHECK_VARIABLES(ng,nl,options,sub%data_mask,model,sub)
+        CALL CHECK_VARIABLES_SUBGRID(d1,nc,model,sub,inter,options,&
+             frac_out2)
      END IF
+     ! ------- post processing
+     clara%av%hist2d_cot_ctp(d1,1:n_tbins,1:n_pbins,1:2) = &
+          GET_PTAU(nc,n_tbins,n_pbins,options,&
+          inter%tau,inter%ctp,inter%cph)
 
-     CALL GET_SUBCOLUMNS(ng,nc,nl,model%PSURF,&
-          model%CC,model%CV,frac_out(1:ng,1:nc,1:nl),&
-          options%subsampler)
+     CALL GRID_AVERAGE(d1,sub,inter,nc,clara%av)
+  END DO ! end ng
+  IF (options%dbg>0) CALL CHECK_GRID_AVERAGES(model,sub,options,clara%av)
 
-     ! ---------------------------
-     ! Loop over grid points
-     DO d1 =1,ng
+  IF (need2Average) THEN
+     ! I need to save the sum and number of elements for all
+     ! variables and empty them after each time step
+     ! make_grid average is really made for only one value per grid per day
+     CALL DAY_ADD(clara,sub,ng,n_pbins,n_tbins)
+  END IF
 
-        ! I cannot move these 3 to outside the grid loop,
-        ! because that uses too much memory
-
-        ! empty internal
-        CALL INITIALISE_INTERNAL_SIMULATOR(inter,nc,nl,options)
-
-        frac_out2=frac_out(d1,:,:)
-        CALL GET_CLOUD_MICROPHYSICS(d1,nc,nl,frac_out2,&
-             inter,sub,options)
-
-        inter%Tb(1:nc)=TB_ICARUS(d1,nc,nl,model,sub,inter,frac_out2)
-
-        DO ins = 1,nc
-           ! --- loop over sub-columns         
-           IF (inter%cflag(ins) .EQ. 0) CYCLE ! i.e., I should also
-           ! simulate very thin clouds
-
-           ! the CTTH routines need some rewriting if I want to
-           ! avoid the loop
-           CALL CTTH(d1,ins,model,sub,inter)
-           IF (sub%sunlit(d1).EQ.1) THEN
-              ! consider moving water and ice together to avoid if-statement."
-              IF (inter%cph(ins) .EQ. 1) THEN
-                 inter%reff(ins) = CLOUD_EFFECTIVE_RADIUS(d1,ins,nl,&
-                      sub,inter,options%sim_aux%LUT%water%optics)
-              ELSEIF (inter%cph(ins) .EQ. 2) THEN
-                 inter%reff(ins) = CLOUD_EFFECTIVE_RADIUS(d1,ins,nl,&
-                      sub,inter,options%sim_aux%LUT%ice%optics)
-              END IF
-           END IF
-
-        END DO
-        IF (sub%sunlit(d1).EQ.1) THEN
-           WHERE(inter%cflag(1:nc).GT.1)
-              inter%cwp      (1:nc) = 0.667_wp*1.e-3*&
-                   inter%reff(1:nc)*&
-                   inter%tau       (1:nc)*&
-                   rho(inter%cph   (1:nc))
-           ELSEWHERE
-              inter%cwp(1:nc) = 0._wp
-           END WHERE
-        END IF
-
-        IF (options%dbg>0) THEN
-           CALL CHECK_VARIABLES_SUBGRID(d1,nc,model,sub,inter,options,&
-                frac_out2)
-        END IF
-        ! ------- post processing
-        clara%av%hist2d_cot_ctp(d1,1:n_tbins,1:n_pbins,1:2) = &
-             GET_PTAU(nc,n_tbins,n_pbins,options,&
-             inter%tau,inter%ctp,inter%cph)
-
-        CALL GRID_AVERAGE(d1,sub,inter,nc,clara%av)
-     END DO ! end ng
-     IF (options%dbg>0) CALL CHECK_GRID_AVERAGES(model,sub,options,clara%av)
-
-     IF (need2Average) THEN
-        ! I need to save the sum and number of elements for all
-        ! variables and empty them after each time step
-        ! make_grid average is really made for only one value per grid per day
-        CALL DAY_ADD(clara,sub,ng,n_pbins,n_tbins)
-     END IF
-
-     CALL SYSTEM_CLOCK(endTime)
-     elapsed = elapsed+REAL(endTime-startTime)/REAL(clock_rate)
-     CALL TIME_KEEPER(elapsed)
-
-  END DO  ! itime
+  CALL SYSTEM_CLOCK(endTime)
+  elapsed = elapsed+REAL(endTime-startTime)/REAL(clock_rate)
+  CALL TIME_KEEPER(elapsed)
 
   IF (need2Average) THEN
      ! I need to save the sum and number of elements for all
@@ -408,96 +403,3 @@ CONTAINS
   END SUBROUTINE INITIALIZE_LOCAL_SCALARS
 
 END PROGRAM CLARA_SIMULATOR
-
-! TO BE DELETED
-!        ! !!!!!!!!!!!!!
-!        ! testing moving things out
-!        ! !!!!!!!!
-!
-!        ! !!!!!!!!!!
-!        ! TAU
-!        ! !!!!!!!!!!
-!        tau_profile (1:ng,1:nc,1:nl) = &
-!             MERGE(SPREAD((sub%itau(1:ng,1:nl)+sub%ltau(1:ng,1:nl)),1,nc),&
-!             0._wp,&
-!             frac_out(1:ng,1:nc,1:nl) .GT. 0)
-!
-!        tau(1:ng,1:nc)   = SUM(tau_profile(1:ng,1:nc,1:nl),DIM=3)
-!
-!        ! !!!!!!!!!!!!
-!        ! cloud type
-!        ! !!!!!!!!!!!!
-!        
-!        DO lvl=1,SIZE(options%sim_aux%POD_tau_bin_edges)-1
-!           ! I cannot avoid this loop it seems
-!           DO d1=1,ng
-!              WHERE(tau(d1,1:nc).GT.options%sim_aux%POD_tau_bin_edges(lvl)&
-!                   & .AND.tau(d1,1:nc).LE.options%sim_aux%POD_tau_bin_edges(lvl+1))
-!                 
-!                 cflag(d1,1:nc)=MERGE(3,0,&
-!                      options%sim_aux%random_numbers(sub%sunlit(d1)+1,d1,1:nc).GE.&
-!                      (1-SPREAD(options%sim_aux%POD_layers(d1,lvl,sub%sunlit(d1)+1),1,nc)))
-!              END WHERE
-!           END DO
-!        END DO
-!        ! reclassify the cloudy columns to semi-transparent if the optical
-!        ! depth is less than opaque (I should be using RTTOV channel
-!        ! differences for CLARA)
-!        
-!        WHERE(tau.EQ.0)
-!           cflag=0
-!        END WHERE
-!        WHERE((cflag.EQ.3).AND.(tau.LT.4))
-!           cflag=2
-!        END WHERE
-!
-!        ! !!!!!!!!!!!!!!
-!        ! Upper cloud
-!        ! !!!!!!!!!!!!!!!
-!
-!        DO inl = 1, nl  ! loop over levels from TOA to surface
-!           ac_tau(1:ng,1:nc,inl+1) = SUM(tau_profile(1:ng,1:nc,2:inl),DIM=3)
-!           
-!           WHERE (tau_profile(1:ng,1:nc,inl).GT.0) 
-!              WHERE (ac_tau(1:ng,1:nc,inl+1).LE.ucLim) 
-!                 ! The whole layer is in the upper part of the cloud
-!                 upper_cloud(1:ng,1:nc,inl) = 1._wp
-!              ELSEWHERE
-!                 ! passed the threshold of upper cloud. find fraction of
-!                 ! "by-how-much" 
-!                 WHERE (ac_tau(1:ng,1:nc,inl).LT.ucLim)
-!                    ! part of the upper cloud is in this model layer
-!                    upper_cloud(1:ng,1:nc,inl) = &
-!                         (ucLim-ac_tau(1:ng,1:nc,inl))/ac_tau(1:ng,1:nc,inl+1)
-!                 END WHERE
-!              END WHERE
-!           END WHERE
-!        END DO
-!
-!        ! !!!!!!!!!!!!!!
-!        ! Cloud Phase
-!        ! !!!!!!!!!!!!!!!
-!
-!        ! because we are only using ltau and itau where cflag>0
-!        ltau = SPREAD(sub%ltau(1:ng,1:nl),1,nc)
-!        itau = SPREAD(sub%itau(1:ng,1:nl),1,nc)
-!
-!        num   = 0._wp
-!        den   = 0._wp
-!        phase = 0
-!
-!        WHERE(cflag(1:ng,1:nc).GT.0)
-!           num(1:ng,1:nc) = SUM(upper_cloud(1:ng,1:nc,1:nl) * &
-!                ( 1._wp*ltau(1:ng,1:nc,1:nl)+2._wp*itau(1:ng,1:nc,1:nl) ),&
-!                DIM=3)
-!
-!           den(1:ng,1:nc) = SUM(upper_cloud(1:ng,1:nc,1:nl) * &
-!                ( ltau(1:ng,1:nc,1:nl)+itau(1:ng,1:nc,1:nl) ),&
-!                DIM=2)
-!           
-!           phase(1:ng,1:nc) =NINT( num(1:ng,1:nc)/den(1:ng,1:nc) )
-!        END WHERE
-!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
