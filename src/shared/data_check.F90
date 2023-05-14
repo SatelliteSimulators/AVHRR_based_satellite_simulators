@@ -1,6 +1,6 @@
 MODULE data_check
   ! various routines dedicated to checking the validity of data. Good
-  ! for debugging and runtime error checking 
+  ! for debugging and runtime error checking
   !
   ! Salomon.Eliasson@smhi.se
 
@@ -31,7 +31,7 @@ MODULE data_check
   REAL(wp), PARAMETER :: cth_min  = height_min, cth_max  = height_max
   REAL(wp), PARAMETER :: ctp_min  = MinimumTropopausePressure, ctp_max  = P_max
   REAL(wp), PARAMETER :: ctt_min  = T_min,      ctt_max  = T_max
-  REAL(wp), PARAMETER :: epsR = 1000*EPSILON(1._wp)  
+  REAL(wp), PARAMETER :: epsR = 1000*EPSILON(1._wp)
   REAL(wp), PARAMETER :: frac_min = 0,          frac_max = 1
   REAL(wp), PARAMETER :: missing = -999._wp
   REAL(wp), PARAMETER :: p_tau_min=0,           p_tau_max=4.e7
@@ -56,7 +56,7 @@ CONTAINS
 
     TYPE(model_type), INTENT(in),OPTIONAL :: M
     TYPE(subset), INTENT(in),OPTIONAL     :: S
-    LOGICAL, OPTIONAL, INTENT(in)         :: print_profile 
+    LOGICAL, OPTIONAL, INTENT(in)         :: print_profile
     REAL(wp), OPTIONAL, INTENT(in)        :: scops_in(nlev)
 
     INTEGER :: d1,inl
@@ -119,7 +119,7 @@ CONTAINS
 
              IF (PRESENT(S)) THEN
                 CALL PRINT_SUB_POINT(S,d1,nlev,scops(1:nlev))
-                
+
              END IF
              IF (.NOT. PRESENT(print_profile)) &
                   STOP "Model or simulator input fields are outside the valid range"
@@ -183,7 +183,7 @@ CONTAINS
          psurf_min,psurf_max,mask1=dm1,data1=M%PSURF,scale=0.01_wp)
 
     var='M%Q'
-    form='f6.4' 
+    form='f6.4'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          q_min,q_max,mask2=dm,data2=M%Q)
 
@@ -213,14 +213,14 @@ CONTAINS
          tcwv_min,tcwv_max,mask1=dm1,data1=M%TCWV)
 
     var='M%CV'
-    form='f5.3' 
+    form='f5.3'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          frac_min,frac_max,mask2=dm,data2=M%CV)
 
 
   END FUNCTION CHECK_MODEL
   !
-  ! ----- 
+  ! -----
   !
   FUNCTION CHECK_DERIVED(S,data_mask,options,ngrids,nlev) RESULT(whammy)
 
@@ -233,7 +233,6 @@ CONTAINS
     LOGICAL,INTENT(in)       :: data_mask(ngrids,nlev)
     INTEGER, INTENT(in)      :: ngrids,nlev
 
-    REAL(wp), PARAMETER :: satzen_min  = 0, satzen_max  = 60 
     REAL(wp), PARAMETER :: solzen_min  = 0, solzen_max  = 180
     REAL(wp), PARAMETER :: ciwc_gm3_min= 0, ciwc_gm3_max= 3e3
     REAL(wp), PARAMETER :: clwc_gm3_min= 0, clwc_gm3_max= 3e3
@@ -264,7 +263,7 @@ CONTAINS
 
     IF (ALLOCATED(S%cloud_emis)) THEN
        var='S%cloud_emis'
-       form='f5.3' 
+       form='f5.3'
        whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
             0._wp,1._wp,mask2=dm,data2=S%cloud_emis)
     END IF
@@ -272,7 +271,7 @@ CONTAINS
     IF (ALLOCATED(S%g0)) THEN
 
        var='S%g0'
-       form='f6.4' 
+       form='f6.4'
        whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
             0._wp,1._wp,mask2=dm,data2=S%g0,except=missing)
     END IF
@@ -284,55 +283,48 @@ CONTAINS
             height_min,height_max,mask2=dm,data2=S%height),dim=2),2,nlev)
     END IF
     var='S%ireff'
-    form='f7.2' 
+    form='f7.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,ireff_min,ireff_max,&
          mask2=dm,data2=S%ireff,except=missing)
 
     var='S%itau'
-    form='f8.2' 
+    form='f8.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,tau_min,tau_max,&
          mask2=dm,data2=S%itau)
 
     var='S%iwp'
-    form='f8.2' 
+    form='f8.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,iwp_min,iwp_max,&
          mask2=dm,data2=S%iwp,scale=1000._wp)
 
     var='S%lreff'
-    form='f7.2' 
+    form='f7.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,lreff_min,lreff_max,&
          mask2=dm,data2=S%lreff,except=missing)
 
     var='S%ltau'
-    form='f9.2' 
+    form='f9.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,tau_min,tau_max,&
          mask2=dm,data2=S%ltau)
 
     var='S%lwp'
-    form='f9.2' 
+    form='f9.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,lwp_min,lwp_max,&
          mask2=dm,data2=S%lwp,scale=1000._wp)
 
     var='S%p_mid'
-    form='f7.1' 
+    form='f7.1'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,p_min,p_max,&
          mask2=dm,data2=S%p_mid,scale=0.01_wp)
 
-    IF (ALLOCATED(S%satzen)) THEN
-       var='S%satzen'
-       form='f6.1' 
-       whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,satzen_min,satzen_max,&
-            mask1=dm1,data1=S%satzen)
-    END IF
-
     var='S%solzen'
-    form='f6.1' 
+    form='f6.1'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,solzen_min,solzen_max,&
          mask1=dm1,data1=S%solzen)
 
     IF (options%sim%doClara .OR. options%sim%doCloud_cci) THEN
        var='S%Tcorr'
-       form='f7.2' 
+       form='f7.2'
        whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,T_min,T_max,&
             mask2=dm,data2=S%Tcorr)
     END IF
@@ -340,7 +332,7 @@ CONTAINS
     IF (ALLOCATED(S%w0)) THEN
 
        var='S%w0'
-       form='f6.4' 
+       form='f6.4'
        whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,0._wp,1._wp,&
             mask2=dm,data2=S%w0,except=missing)
     END IF
@@ -419,8 +411,6 @@ CONTAINS
     WRITE(*,15) "[-]","[m]","[micron]","[-]",&
          "[g/m2]","[micron]","[-]","[g/m2]","[hPa]","[hPa]","[K]","[-]"
 
-    IF (ALLOCATED(S%satzen)) &
-         PRINT '(A13,1x,F7.1," [deg]")',"S%satzen =",S%satzen(d1)
     PRINT '(A13,1x,F7.1," [deg]")',"S%solzen =",S%solzen(d1)
   END SUBROUTINE PRINT_SUB_POINT
 
@@ -465,7 +455,7 @@ CONTAINS
 
     IMPLICIT NONE
 
-    CHARACTER(*),INTENT(in)       :: var 
+    CHARACTER(*),INTENT(in)       :: var
     CHARACTER(*),INTENT(in)       :: form ! string format
     INTEGER,  INTENT(in)          :: ndim1,ndim2 ! I can't avoid the second dimension
     REAL(wp), INTENT(in), OPTIONAL:: min,max
@@ -521,7 +511,7 @@ CONTAINS
          &',". ''',TRIM(var),''' =",)'
 
     IF (ANY(whammy)) THEN
-       
+
        SELECT CASE(d)
        CASE(1)
           IF (isint) THEN
