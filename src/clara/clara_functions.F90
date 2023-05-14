@@ -48,7 +48,7 @@ MODULE CLARA_FUNCTIONS
 
 CONTAINS
 
-  SUBROUTINE CTTH(d1,ins,model,S,inter)
+  SUBROUTINE CTTH(d1,ins,CDR,model,S,inter)
     ! The PPS CTTH algorithms
     !
     ! For thick clouds, use a simple approach
@@ -59,6 +59,7 @@ CONTAINS
     TYPE(model_type), intent(in) :: model
     TYPE(subset), INTENT(in)     :: S
     TYPE(internal), INTENT(inout):: inter
+    CHARACTER(*),INTENT(in)      :: CDR 
     INTEGER, INTENT(in)          :: d1,ins
     INTEGER :: nlev
     
@@ -74,7 +75,7 @@ CONTAINS
 
     ELSE IF (inter%cflag(ins) .EQ. 2) THEN
 
-       CALL CLARA_CTTH_ST_SIMPLE(d1,ins,model,S,inter)
+       CALL CLARA_CTTH_ST_SIMPLE(d1,ins,CDR,model,S,inter)
 
     ELSE
        ! subvisible=cloud free
@@ -383,7 +384,7 @@ CONTAINS
 
   END SUBROUTINE GET_BOUNDARIES_AND_FLAGS
 
-  SUBROUTINE CLARA_CTTH_ST_SIMPLE(d1,ins,model,S,inter)
+  SUBROUTINE CLARA_CTTH_ST_SIMPLE(d1,ins,CDR,model,S,inter)
 
     ! Simple approach using only the documented biases for
     ! semi-transparent clouds. The biases are from the "PPS algoritms scientific and validation
@@ -397,6 +398,7 @@ CONTAINS
     TYPE(subset), INTENT(in)     :: S
     TYPE(model_type), INTENT(in) :: model
     TYPE(internal), intent(inout):: inter
+    CHARACTER(*),INTENT(in)      :: CDR
 
     ! low,middle,high
     REAL(wp) :: PPS_offset(3)
@@ -417,7 +419,14 @@ CONTAINS
     ! Cloud Product Processors of the NWC/PPS (13 December 2018)
     !
     ! from table 13.
-    DATA PPS_offset / 257, -145, -3336 / ![m]
+
+    SELECT CASE(CDR)
+       
+    CASE('clara-a2')
+       DATA PPS_offset / 257, -145, -3336 / ![m]
+    CASE('clara-a3')
+       DATA PPS_offset / 116, 0, -864 / ![m]
+    END SELECT
 
     ! Base it on the CTTH from the MODIS approach
     ctp = CTP_SIMPLE(d1,ins,nlev,S,inter,1._wp)
