@@ -17,7 +17,7 @@ MODULE MODEL_INPUT
   USE MY_NETCDFTOOLS,      ONLY:&
        CHECK
   USE NAMELIST_INPUT,      ONLY:&
-       NAME_LIST                      
+       NAME_LIST
   USE NETCDF,              ONLY:&
        NF90_CLOSE,              &
        NF90_GET_VAR,            &
@@ -42,8 +42,8 @@ MODULE MODEL_INPUT
   ! http://old.ecmwf.int/publications/manuals/d/gribapi/param/filter=grib1/order=paramId/order_type=asc/p=1/table=128/
   !
   ! Auxilliary
-  ! 
-  ! 'areacella' = area of gridcell 
+  !
+  ! 'areacella' = area of gridcell
   ! 'hyai' = hybrid A coefficient at layer interfaces [Pa].
   ! 'hyam' = hybrid A coefficient at layer midpoints [Pa].
   ! 'hybi' = hybrid B coefficient at layer interfaces [1].
@@ -59,7 +59,7 @@ MODULE MODEL_INPUT
   ! 'nlon, nlat, nlev, ntlen' = dimensions of the data
   ! 'netcdf_file' = filename of model input
   ! 'time_units'= units for time
-  ! 'calendar' = 'calendar used' 
+  ! 'calendar' = 'calendar used'
   !
   ! MODEL FIELDS
   !
@@ -96,7 +96,7 @@ MODULE MODEL_INPUT
      CHARACTER(len =  100) :: calendar
      INTEGER :: year,month,day,hour,idtg
      REAL(wp) :: deltaTime
-     
+
   END TYPE REF_TIME_TYPE
   TYPE MODEL_AUX
 
@@ -106,7 +106,7 @@ MODULE MODEL_INPUT
      REAL(wp), ALLOCATABLE, DIMENSION(:)   :: lon_v, lat_v
      REAL(wp), ALLOCATABLE, DIMENSION(:)   :: lsm
      REAL(wp), ALLOCATABLE, DIMENSION(:)   :: time
-     TYPE(ref_time_type) :: ref 
+     TYPE(ref_time_type) :: ref
      REAL(wp) :: modelRes
      REAL(wp) :: fvr = -999._wp ! 1.e+20
      INTEGER  :: fvi = -999
@@ -121,17 +121,17 @@ MODULE MODEL_INPUT
 
   TYPE MODEL_TYPE
      TYPE(model_aux) :: aux
-     REAL(wp), ALLOCATABLE, DIMENSION(:,:)  :: CC   
-     REAL(wp), ALLOCATABLE, DIMENSION(:)    :: CI   
-     REAL(wp), ALLOCATABLE, DIMENSION(:,:)  :: CIWC 
+     REAL(wp), ALLOCATABLE, DIMENSION(:,:)  :: CC
+     REAL(wp), ALLOCATABLE, DIMENSION(:)    :: CI
+     REAL(wp), ALLOCATABLE, DIMENSION(:,:)  :: CIWC
      REAL(wp), ALLOCATABLE, DIMENSION(:,:)  :: CLWC
      REAL(wp), ALLOCATABLE, DIMENSION(:)    :: PSURF
-     REAL(wp), ALLOCATABLE, DIMENSION(:,:)  :: Q    
-     REAL(wp), ALLOCATABLE, DIMENSION(:)    :: SKT  
-     REAL(wp), ALLOCATABLE, DIMENSION(:,:)  :: T    
-     REAL(wp), ALLOCATABLE, DIMENSION(:)    :: T2M  
-     REAL(wp), ALLOCATABLE, DIMENSION(:)    :: TCC  
-     REAL(wp), ALLOCATABLE, DIMENSION(:)    :: TCWV 
+     REAL(wp), ALLOCATABLE, DIMENSION(:,:)  :: Q
+     REAL(wp), ALLOCATABLE, DIMENSION(:)    :: SKT
+     REAL(wp), ALLOCATABLE, DIMENSION(:,:)  :: T
+     REAL(wp), ALLOCATABLE, DIMENSION(:)    :: T2M
+     REAL(wp), ALLOCATABLE, DIMENSION(:)    :: TCC
+     REAL(wp), ALLOCATABLE, DIMENSION(:)    :: TCWV
      ! this is not actually in the model
      REAL(wp), ALLOCATABLE, DIMENSION(:,:)  :: CV
   END TYPE MODEL_TYPE
@@ -147,7 +147,7 @@ CONTAINS
     ! model file
     !
     !
-    IMPLICIT NONE 
+    IMPLICIT NONE
 
     TYPE(model_aux), INTENT(inout) :: aux
     TYPE(name_list), INTENT(inout) :: options
@@ -178,8 +178,9 @@ CONTAINS
     ncid = 0
     varid = 0
     dimid = 0
+
     CALL CHECK( nf90_open(aux%netcdf_file, nf90_nowrite, ncid) )
-    CALL CHECK( nf90_inquire(ncid, nDimensions) ) 
+    CALL CHECK( nf90_inquire(ncid, nDimensions) )
     DO dimid = 1, nDimensions
 
        ! Get 'len' and 'str' for every variable
@@ -188,7 +189,7 @@ CONTAINS
        ! skip if str = time if you don't want it or vise versa
        IF (.NOT. time .AND. str .EQ. 'time') CYCLE
        IF (time .AND. str .NE. 'time') CYCLE
-       IF (str .EQ. 'time') THEN 
+       IF (str .EQ. 'time') THEN
           ALLOCATE( aux%time(len) )
           aux%time=-999._wp
           CALL CHECK( nf90_inq_varid(ncid, str, varid) )
@@ -207,7 +208,7 @@ CONTAINS
           CALL CHECK( nf90_get_var(ncid, varid, aux%hybm) ,dbg,'reading '//str);
           aux%nlev = len
        ELSE IF (str .EQ. 'nhyi') THEN
-          ALLOCATE(aux%hyai(len), aux%hybi(len) ) 
+          ALLOCATE(aux%hyai(len), aux%hybi(len) )
           CALL CHECK( nf90_inq_varid(ncid, 'hyai', varid) )
           CALL CHECK( nf90_get_var(ncid, varid, aux%hyai) ,dbg,'reading '//str);
           CALL CHECK( nf90_inq_varid(ncid, 'hybi', varid) )
@@ -234,13 +235,13 @@ CONTAINS
        ! RACMO-specific
        IF (options%model .EQ. 'racmo') THEN
           IF (str .EQ. 'rlon') THEN
-             ALLOCATE( aux%rlon(len) ) 
+             ALLOCATE( aux%rlon(len) )
              CALL CHECK( nf90_inq_varid(ncid, str, varid) )
              CALL CHECK( nf90_get_var(ncid, varid, aux%rlon) ,dbg, 'reading '//str);
              aux%nlon = len
              lorlon = .TRUE.
           ELSE IF (str .EQ. 'rlat') THEN
-             ALLOCATE( aux%rlat(len) ) 
+             ALLOCATE( aux%rlat(len) )
              CALL CHECK( nf90_inq_varid(ncid, str, varid) )
              CALL CHECK( nf90_get_var(ncid, varid, aux%rlat) ,dbg,'reading '//str);
              aux%nlat = len
@@ -248,7 +249,6 @@ CONTAINS
           END IF
        END IF
     END DO
-
     IF (.NOT.time) THEN
        IF (lorlon .AND. lorlat) THEN
 
@@ -256,25 +256,24 @@ CONTAINS
           ! LON LAT
           !
           nlon = aux%nlon
-          nlat = aux%nlat 
+          nlat = aux%nlat
           IF (options%model .EQ. 'ec_earth') THEN
-             ! ... lon lat
              ALLOCATE(aux%lon(nlon,nlat),&
                   aux%lat(nlon,nlat))
-             aux%lon = SPREAD(tmp_lon,2,nlat)
-             aux%lat = SPREAD(tmp_lat,1,nlon)
+             aux%lon(1:nlon,1:nlat) = SPREAD(tmp_lon,2,nlat)
+             aux%lat(1:nlon,1:nlat) = SPREAD(tmp_lat,1,nlon)
           END IF
           IF (options%model .EQ. 'racmo') THEN
              ! horizontal spatial dimensions and corresponding coordinate variables have been imported
-             ! two-dimensional arrays lon and lat can be read here 
+             ! two-dimensional arrays lon and lat can be read here
              ! ... 2-dimensional longitude
              str='lon'
-             ALLOCATE( aux%lon(nlon,nlat) ) 
+             ALLOCATE( aux%lon(nlon,nlat) )
              CALL CHECK( nf90_inq_varid(ncid, str, varid) )
              CALL CHECK( nf90_get_var(ncid, varid, aux%lon) ,dbg, 'reading '//str);
              ! ... 2-dimensional latitude
              str='lat'
-             ALLOCATE( aux%lat(nlon,nlat) ) 
+             ALLOCATE( aux%lat(nlon,nlat) )
              CALL CHECK( nf90_inq_varid(ncid, str, varid) )
              CALL CHECK( nf90_get_var(ncid, varid, aux%lat) ,dbg, 'reading '//str);
           ENDIF
@@ -285,7 +284,7 @@ CONTAINS
           ALLOCATE(aux%lon_v(aux%ngrids),&
                aux%lat_v(aux%ngrids))
           aux%lon_v = RESHAPE(aux%lon,(/ aux%ngrids /))
-          aux%lat_v = RESHAPE(aux%lat,(/ aux%ngrids /)) 
+          aux%lat_v = RESHAPE(aux%lat,(/ aux%ngrids /))
           ! -------------------- end LON LAT
 
           ! --------------------
@@ -293,17 +292,17 @@ CONTAINS
           !
           ALLOCATE(aux%lsm(nlon*nlat))
           IF (options%model .EQ. 'ec_earth') THEN
-             ALLOCATE( lsm(nlon,nlat) ) 
+             ALLOCATE( lsm(nlon,nlat) )
              WRITE(file, '("data/land_sea_mask.nc")')
              ncid2=0
              dimid=1
              IF (CHECK_FILE(TRIM(file))) THEN
-                PRINT '(2A)'," --- getting land mask from:",TRIM(file) 
+                PRINT '(2A)'," --- getting land mask from:",TRIM(file)
                 CALL CHECK( nf90_open     (TRIM(file),nf90_nowrite,ncid2 ) )
-                ! check if this land sea mask fits 
+                ! check if this land sea mask fits
                 str='lon'
                 CALL CHECK(nf90_inquire_dimension( ncid2,dimid,str,len ) )
-                IF  (len.NE.nlon) THEN 
+                IF  (len.NE.nlon) THEN
                    PRINT '(100A)', "land sea mask dimensions do not match model.&
                         Will make a land sea mask that matches the model"
                    aux%lsm = GET_LAND_SEA_MASK(aux,options)
@@ -313,14 +312,14 @@ CONTAINS
                    CALL CHECK( nf90_get_var  (ncid2,varid,lsm) ,dbg, 'reading '//str);
                    aux%lsm=RESHAPE(lsm, (/ nlon*nlat /))
                 END IF
-                CALL CHECK( nf90_close    (ncid2))             
+                CALL CHECK( nf90_close    (ncid2))
              ELSE
                 aux%lsm = GET_LAND_SEA_MASK(aux,options)
              END IF
           ELSEIF (options%model .EQ. 'racmo') THEN
              ! ... two-dimensional array lsm can be read here and stored in lsm2
              str='lsm'
-             ALLOCATE( lsm(nlon,nlat) ) 
+             ALLOCATE( lsm(nlon,nlat) )
              CALL CHECK( nf90_inq_varid(ncid, str, varid) )
              CALL CHECK( nf90_get_var(ncid, varid, lsm) ,dbg, 'reading '//str);
              aux%lsm=RESHAPE(lsm, (/ nlon*nlat /))
@@ -363,7 +362,7 @@ CONTAINS
           !
           IF (options%model .EQ. 'ec_earth') THEN
              ! ... grid area
-             ALLOCATE( aux%areacella(nlat) ) 
+             ALLOCATE( aux%areacella(nlat) )
              drlonrad=ABS(aux%lon(2,1)-aux%lon(1,1))*d2r
              drlatrad=ABS(aux%lat(1,2)-aux%lat(1,1))*d2r
              aux%areacella=2.*drlonrad*COS(aux%lat_v*d2r)*SIN(drlatrad/2.)*earth_radius**2
@@ -373,7 +372,7 @@ CONTAINS
           END IF
           IF (options%model .EQ. 'racmo') THEN
              ! ... grid area
-             ALLOCATE( aux%areacella(nlat) ) 
+             ALLOCATE( aux%areacella(nlat) )
              drlonrad=ABS(aux%rlon(2)-aux%rlon(1))*d2r
              drlatrad=ABS(aux%rlat(2)-aux%rlat(1))*d2r
              aux%areacella=2.*drlonrad*COS(aux%rlat*d2r)*SIN(drlatrad/2.)*earth_radius**2
@@ -389,7 +388,7 @@ CONTAINS
           ! you use 20 subgrids per model grid column or the number that
           ! would give a 5km footprint
           !
-          
+
           options%ncols = CEILING(aux%modelRes*100)
 
           PRINT '(4(a,1x,i3))', " --- Using a static number of columns for a",&
@@ -417,7 +416,7 @@ CONTAINS
 
     DEALLOCATE (&
          aux%areacella,&
-         aux%hyam     ,&   
+         aux%hyam     ,&
          aux%hybm     ,&
          aux%hyai     ,&
          aux%hybi     ,&
@@ -444,18 +443,18 @@ CONTAINS
     TYPE(model_type), INTENT(inout) :: M
     INTEGER, INTENT(in)             :: ngrids,nlev
 
-    ALLOCATE ( M%CC     (ngrids, nlev) ,&  
-               M%CI     (ngrids      ) ,&              
-               M%CIWC   (ngrids, nlev) ,&  
-               M%CLWC   (ngrids, nlev) ,&  
+    ALLOCATE ( M%CC     (ngrids, nlev) ,&
+               M%CI     (ngrids      ) ,&
+               M%CIWC   (ngrids, nlev) ,&
+               M%CLWC   (ngrids, nlev) ,&
                M%CV     (ngrids, nlev) ,&
-               M%PSURF  (ngrids      ) ,&           
-               M%Q      (ngrids, nlev) ,&  
-               M%SKT    (ngrids      ) ,&              
-               M%T      (ngrids, nlev) ,&      
-               M%T2M    (ngrids      ) ,&              
-               M%TCC    (ngrids      ) ,&              
-               M%TCWV   (ngrids      ) )              
+               M%PSURF  (ngrids      ) ,&
+               M%Q      (ngrids, nlev) ,&
+               M%SKT    (ngrids      ) ,&
+               M%T      (ngrids, nlev) ,&
+               M%T2M    (ngrids      ) ,&
+               M%TCC    (ngrids      ) ,&
+               M%TCWV   (ngrids      ) )
 
   END SUBROUTINE allocate_model_matrix
 
@@ -476,16 +475,16 @@ CONTAINS
        init=mv
     END IF
     M%CC   (1:ngrids, 1:nlev)  = init
-    M%CI   (1:ngrids)          = init 
+    M%CI   (1:ngrids)          = init
     M%CIWC (1:ngrids, 1:nlev)  = init
     M%CLWC (1:ngrids, 1:nlev)  = init
     M%CV   (1:ngrids, 1:nlev)  = init
     M%PSURF(1:ngrids)          = init
-    M%Q    (1:ngrids, 1:nlev)  = init  
+    M%Q    (1:ngrids, 1:nlev)  = init
     M%SKT  (1:ngrids)          = init
     M%T    (1:ngrids, 1:nlev)  = init
     M%T2M  (1:ngrids)          = init
-    M%TCC  (1:ngrids)          = init   
+    M%TCC  (1:ngrids)          = init
     M%TCWV (1:ngrids)          = init
 
   END SUBROUTINE initialise_model_matrix
@@ -496,16 +495,16 @@ CONTAINS
     TYPE(model_type), INTENT(inout) :: M
 
     DEALLOCATE ( M%CC,&
-         M%CI   ,& 
+         M%CI   ,&
          M%CIWC ,&
          M%CLWC ,&
          M%CV   ,&
          M%PSURF,&
-         M%Q    ,&  
-         M%SKT  ,&   
+         M%Q    ,&
+         M%SKT  ,&
          M%T    ,&
          M%T2M  ,&
-         M%TCC  ,&   
+         M%TCC  ,&
          M%TCWV)
 
   END SUBROUTINE deallocate_model_matrix
@@ -518,7 +517,7 @@ CONTAINS
 
     TYPE(model_type), INTENT(inout) :: M
     INTEGER, INTENT(in)             :: itime
-    INTEGER, OPTIONAL, INTENT(in)   :: verbose 
+    INTEGER, OPTIONAL, INTENT(in)   :: verbose
     TYPE(name_list), INTENT(in)     :: options
 
     INTEGER               :: ncid, varid
@@ -540,7 +539,7 @@ CONTAINS
          var
 
     ! temporary variables before regridding
-    REAL(wp), DIMENSION(M%aux%nlon,M%aux%nlat) :: CI,SKT,PSURF,T2M,TCC,TCWV 
+    REAL(wp), DIMENSION(M%aux%nlon,M%aux%nlat) :: CI,SKT,PSURF,T2M,TCC,TCWV
     REAL(wp), DIMENSION(M%aux%nlon,M%aux%nlat,M%aux%nlev) :: CC,CIWC,CLWC,Q,T
     REAL(wp), DIMENSION(M%aux%nlon,M%aux%nlat,1) :: tmpPsurf
 
@@ -598,12 +597,12 @@ CONTAINS
     END SELECT
 
     ! cloud cover
-!    PRINT '(A,A)',"Reading ",strCC 
+!    PRINT '(A,A)',"Reading ",strCC
     CALL CHECK( NF90_INQ_VARID(ncid, TRIM(strCC) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, CC, start4, count4) )
 
     ! sea ice
-!    PRINT '(A,A)',"Reading ",strCI 
+!    PRINT '(A,A)',"Reading ",strCI
     CALL CHECK( NF90_INQ_VARID(ncid, trim(strCI) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, CI, start3, count3) )
 
@@ -613,52 +612,52 @@ CONTAINS
     CALL CHECK( NF90_GET_VAR(ncid, varid, CIWC, start4, count4) )
 
     ! cloud liquid water content
-!    PRINT '(A,A)',"Reading ",strCLWC 
+!    PRINT '(A,A)',"Reading ",strCLWC
     CALL CHECK( NF90_INQ_VARID(ncid, trim(strCLWC) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, CLWC, start4, count4) )
 
     ! water vapour profile
-!    PRINT '(A,A)',"Reading ",strQ 
+!    PRINT '(A,A)',"Reading ",strQ
     CALL CHECK( NF90_INQ_VARID(ncid, trim(strQ) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, Q, start4, count4) )
 
     ! surface skin temperature
-!    PRINT '(A,A)',"Reading ",strSKT 
+!    PRINT '(A,A)',"Reading ",strSKT
     CALL CHECK( NF90_INQ_VARID(ncid, trim(strSKT) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, SKT, start3, count3) )
 
     ! Temperature profile
-!    PRINT '(A,A)',"Reading ",strT 
+!    PRINT '(A,A)',"Reading ",strT
     CALL CHECK( NF90_INQ_VARID(ncid, trim(strT) , varid),dbg)
-    CALL CHECK( NF90_GET_VAR(ncid, varid, T, start4, count4) ) 
+    CALL CHECK( NF90_GET_VAR(ncid, varid, T, start4, count4) )
 
     ! 2m temperature
-!    PRINT '(A,A)',"Reading ",strT2M 
+!    PRINT '(A,A)',"Reading ",strT2M
     CALL CHECK( NF90_INQ_VARID(ncid, trim(strT2M) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, T2M, start3, count3) )
 
     ! Total cloud cover
-!    PRINT '(A,A)',"Reading ",strTCC 
+!    PRINT '(A,A)',"Reading ",strTCC
     CALL CHECK( NF90_INQ_VARID(ncid, trim(strTCC) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, TCC, start3, count3) )
 
    ! Total column water vapour
-!    PRINT '(A,A)',"Reading ",strTCWV 
+!    PRINT '(A,A)',"Reading ",strTCWV
     CALL CHECK( NF90_INQ_VARID(ncid, TRIM(strTCWV) , varid),dbg)
     CALL CHECK( NF90_GET_VAR(ncid, varid, TCWV, start3, count3) )
 
     ! Surface pressure
-    IF (options%model.EQ.'ec_earth') THEN 
+    IF (options%model.EQ.'ec_earth') THEN
        var='LNSP'
-!       PRINT '(A,A)',"Reading ",var 
+!       PRINT '(A,A)',"Reading ",var
        CALL CHECK( NF90_INQ_VARID(ncid, TRIM(var) , varid),dbg)
        CALL CHECK( NF90_GET_VAR(ncid, varid, tmpPsurf, start4, [nlon,nlat,1,1]) )
        PSURF(1:nlon,1:nlat)=EXP(tmpPsurf(1:nlon,1:nlat,1))
     ELSEIF (options%model.EQ.'racmo') THEN
-!       PRINT '(A,A)',"Reading ",var 
+!       PRINT '(A,A)',"Reading ",var
        var='ps'
        CALL CHECK( NF90_INQ_VARID(ncid, TRIM(var) , varid),dbg)
-       CALL CHECK( NF90_GET_VAR(ncid, varid, PSURF, start3, count3) ) 
+       CALL CHECK( NF90_GET_VAR(ncid, varid, PSURF, start3, count3) )
     END IF
 
     CALL CHECK( NF90_CLOSE(ncid))
@@ -746,7 +745,7 @@ CONTAINS
 
     REAL(wp), DIMENSION(aux%nlon,aux%nlat) :: land, tot
     ! ====================================
-    ! READ the land sea mask 
+    ! READ the land sea mask
     !
 
     WRITE(file, '("data/land_sea_mask/land_sea_mask_1min.nc")')
@@ -758,7 +757,7 @@ CONTAINS
     ncid=0
     dimid=0
     CALL CHECK( nf90_open( file, nf90_nowrite, ncid ) )
-    CALL CHECK( nf90_inquire( ncid, nDimensions ) ) 
+    CALL CHECK( nf90_inquire( ncid, nDimensions ) )
 
     ! Get the dimensions that span the look up tables
     DO dimid = 1, nDimensions
@@ -779,7 +778,7 @@ CONTAINS
     ALLOCATE ( HR_lsm(nlon, nlat) )
     CALL CHECK( nf90_inq_varid(ncid, 'land_sea_mask', varid),&
          options%dbg, "reading land_sea_mask")
-    CALL CHECK( nf90_get_var(ncid, varid, HR_lsm) ) 
+    CALL CHECK( nf90_get_var(ncid, varid, HR_lsm) )
 
     CALL CHECK( nf90_close(ncid))
     !
@@ -787,7 +786,7 @@ CONTAINS
 
     land(1:aux%nlon,1:aux%nlat) = 0._wp
     tot(1:aux%nlon,1:aux%nlat)  = 0._wp
-    
+
     ilt = 1
     DO lt = 1, nlat
        iln = 1
@@ -808,4 +807,3 @@ CONTAINS
   END FUNCTION get_land_sea_mask
 
 END MODULE model_input
-
