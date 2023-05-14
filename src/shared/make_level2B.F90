@@ -1,5 +1,5 @@
 SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
-     EOT,options,previous,M,time_of_day)  
+     EOT,options,previous,M,time_of_day)
   ! Offline function that samples the model data so that the
   ! local time of the model data exactly match the satellite overpass time
   !
@@ -11,10 +11,10 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
   !       For each day and the correspond UTC
   ! itime 1  2  3  4  5  6  7  8  9 10 11 12 13
   ! UTC:  6 12 18 24  6 12 18 24  6 12 18 24  6
-  ! day1: x  x  x  x  x 
+  ! day1: x  x  x  x  x
   ! day2:             x  x  x  x  x
   ! day3:                         x  x  x  x  x
-  ! 
+  !
   ! Salomon.Eliasson@smhi.se
 
   USE COSP_KINDS,        ONLY: WP
@@ -45,7 +45,7 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
   TYPE(model_type),ALLOCATABLE       :: fullday(:)
 
   TYPE(model_aux)      :: aux
-  REAL(wp)             :: UTC1, t1, t2 
+  REAL(wp)             :: UTC1, t1, t2
   REAL(wp),ALLOCATABLE :: T0(:,:),T0_b(:,:),g_c2u1(:,:),g_c2u2(:,:)
   REAL(wp),ALLOCATABLE :: c2u1(:),c2u2(:),c2u1_2(:,:),c2u2_2(:,:)
   INTEGER              :: nlat,nlon,nlev,ngrids
@@ -78,7 +78,7 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
        isL2b_2(ngrids,nlev))
 
   interpolate = options%L2b%interpolate
-  rx          = options%paths%model_input  
+  rx          = options%paths%model_input
   deltaTime   = aux%ref%deltaTime
   nsteps      = itime_end-itime_start+1
 
@@ -87,7 +87,7 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   WRITE (0,'(a)') '-------------- enter  make_level2B ------------------'
   WRITE (0,'(a,5i8)') ' year, month, iday, itime_start:itime_end: ',&
-       year, month, iday, itime_start,itime_end 
+       year, month, iday, itime_start,itime_end
   WRITE (0,'(a,f8.2)') ' EOT : ',EOT
   WRITE (0,'(a)') '-----------------------------------------------------'
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -95,7 +95,7 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
 1 FORMAT('Reading file from the ',a,' day:',a,', time step =',i3)
 
   ! ==============================
-  ! 
+  !
   !     Put together the data
   !
   ! ==============================
@@ -138,7 +138,7 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
      fullday(i)%aux%netcdf_file=TRIM(file)
      CALL READ_MODEL(fullday(i),tmpItime,options,0)
   END DO
-  
+
   IF (interpolate) THEN
 
      tmpItime=tmpItime+1
@@ -155,15 +155,14 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
            tmpM=tmpM+1
            tmpD=1
         END IF
-        IF (tmpM.GT.12) THEN 
+        IF (tmpM.GT.12) THEN
            tmpY=tmpY+1
            tmpM=1
         END IF
         ! find the next file
         file = BUILD_FILENAME(rx,tmpY,tmpM,tmpD,model=options%model)
-
         IF (CHECK_FILE(TRIM(file))) THEN
-           tmpItime=1 
+           tmpItime=1
         ELSE
            ! There is no next file. "You are probably at the end of your
            ! dataset", so choose the first time step of your current day
@@ -211,8 +210,8 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
   ! conversion to avoid if UTC1+delta > 24
   ! One node at a time if you are doing both asc and dec
   !
-  
-  ! init the output data 
+
+  ! init the output data
   CALL INITIALISE_MODEL_MATRIX(M,ngrids,nlev,mv=0._wp)
 
   UTC1 = MOD(aux%time(itime_start),24._wp) + aux%ref%hour
@@ -232,7 +231,7 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
           "Finding matching EOT data between UTC1=",&
           INT(t1),"and UTC2 =",INT(t2)
 
-     ! -------------------- 
+     ! --------------------
      ! find the longitudes where the EOT is contained between t1 and
      ! t2
 
@@ -266,17 +265,6 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
      c2u1_2=SPREAD(c2u1,2,nlev)
      c2u2_2=SPREAD(c2u2,2,nlev)
      ! --------------------
-
-     !WRITE(rx,'(a,I0.2,".txt")') "testUTC=",INT(t1)
-     !PRINT *,TRIM(rx)
-     !OPEN(UNIT=8, FILE=TRIM(rx)) 
-     !WRITE(0,'(a3,1x,5(a7,1x),a)') 'ind',' lon ',' T0 ','c2u1','c2u2','sum','isL2b'
-     !DO ln=1,nlon
-     !   WRITE(0,'(i3,1x,f7.3,1x,4(f7.4,1x),L)') &
-     !        ln,aux%lon(ln,50),T0(ln,50),g_c2u1(ln,50),g_c2u2(ln,50),g_c2u1(ln,50)+g_c2u2(ln,50),g_isL2b(ln,50)
-     !END DO
-     !WRITE(0,'(a3,1x,5(a7,1x),a)') 'ind',' lon ',' T0 ','c2u1','c2u2','sum','isL2b'
-     !CLOSE(8)
 
      ! ======================================
      ! Do the linear interpolation
@@ -320,7 +308,7 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
         M%T    = M%T    + c2u1_2*fullday(i)%T    + c2u2_2*fullday(i+1)%T
 
      END WHERE
-     ! set the new time 
+     ! set the new time
      UTC1=t2
   END DO
 
@@ -338,7 +326,7 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
 
         t1 = MOD(UTC1,24._wp)
         t2 = MOD(UTC1,24._wp)+deltatime !utc2
-        
+
         WRITE(0,'(2(a,1x,i2,1x))') &
              "Finding matching EOT +12 data between UTC1 =",&
              INT(t1)," and UTC2 = ",INT(t2)
@@ -354,7 +342,7 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
         ! ==============================
         ! Read the data
         ! ==============================
-        
+
         IF (interpolate) THEN
 
            ! --------------------
@@ -401,7 +389,7 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
         END WHERE
 
 
-        ! set the new time 
+        ! set the new time
         UTC1=t2
      END DO
 
@@ -434,7 +422,7 @@ SUBROUTINE MAKE_LEVEL2B(year,month,iday,itime_start,itime_end,&
        c2u1_2 ,&
        c2u2_2 ,&
        isL2b_2)
-  
+
   DO i= 1,nsteps+1
       CALL DEALLOCATE_MODEL_MATRIX(fullday(i))
   END DO
