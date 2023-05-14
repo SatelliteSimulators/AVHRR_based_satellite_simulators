@@ -30,7 +30,6 @@ MODULE satellite_specs
      CHARACTER (len=3)    :: node
 
      ! average satellite zenith angle as a function of latitude
-     !REAL(wp), ALLOCATABLE    :: zonal_mean_satzen(:)
 
      ! local equatorial overpass time for the middle of the year
      REAL(wp), ALLOCATABLE    :: equatorial_overpass_time(:,:)
@@ -94,19 +93,8 @@ CONTAINS
           ALLOCATE( sat%months(len) )
           CALL check( nf90_get_var(ncid, varid, sat%months),options%dbg,'reading '//str);
           nmon = len
-   ! I don't use satzen any more
-   !    ELSE IF (str .EQ. 'lat') THEN
-   !
-   !       ALLOCATE( sat%latitudes(len) )
-   !       CALL check( nf90_get_var(ncid, varid, sat%latitudes),options%dbg,'reading '//str);
-   !       nlat = len
-       END IF
+          END IF
     END DO
-   ! sat%nlat = nlat
-
-   ! ALLOCATE ( sat%zonal_mean_satzen(nlat) )
-   ! CALL check( nf90_inq_varid(ncid, 'satzen_l2b', varid),options%dbg,"reading satzen_l2b")
-   ! CALL check( nf90_get_var(ncid, varid, sat%zonal_mean_satzen) )
 
     IF ( (sat%node.EQ."asc") .OR. (sat%node.EQ."all")) THEN
        field="eqtr_crossing_asc"
@@ -146,15 +134,9 @@ CONTAINS
     TYPE(satellite), INTENT(inout)   :: sat
 
     IF (ALLOCATED(sat%years)) THEN
-    !  DEALLOCATE(sat%equatorial_overpass_time,&
-    !             sat%zonal_mean_satzen       ,&
-    !             sat%years                   ,&
-    !             sat%latitudes               ,&
-    !             sat%months                   )
       DEALLOCATE(sat%equatorial_overpass_time,&
                  sat%years                   ,&
                  sat%months                   )
-
    END IF
 
   END SUBROUTINE deallocate_satellite_specs
