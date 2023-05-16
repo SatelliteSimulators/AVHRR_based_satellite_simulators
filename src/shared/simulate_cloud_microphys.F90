@@ -1,6 +1,6 @@
 MODULE SIMULATE_CLOUD_MICROPHYS
 
-  ! 
+  !
   ! Salomon.Eliasson@smhi.se
 
   USE COSP_KINDS,                ONLY: &
@@ -42,7 +42,7 @@ CONTAINS
 
   SUBROUTINE GET_CLOUD_MICROPHYSICS(d1,nc,nlev,frac_out,inter,sub,options)
 
-    ! A combined routine for cloud microphysics that all our simulators are using 
+    ! A combined routine for cloud microphysics that all our simulators are using
     ! Salomon.eliasson@smhi.se
 
     IMPLICIT NONE
@@ -58,21 +58,21 @@ CONTAINS
          MERGE(SPREAD((sub%itau(d1,1:nlev)+sub%ltau(d1,1:nlev)),1,nc),&
          0._wp,&
          frac_out(1:nc,1:nlev) .GT. 0)
-    
+
     inter%tau(1:nc)   = SUM(inter%tau_profile(1:nc,1:nlev),DIM=2)
 
     sunlit=sub%sunlit(d1)
 
     inter%cflag(1:nc) = GET_CLOUDTYPE(d1,nc,inter,options,sunlit)
- 
+
     inter%frac_in_up_cld(1:nc,1:nlev) = UPPER_CLOUD(nc,nlev,inter)
-    
+
     inter%cph(1:nc)                   = CLOUD_WATER_PHASE(d1,nc,nlev,inter,sub)
-    
+
   END SUBROUTINE GET_CLOUD_MICROPHYSICS
 
   FUNCTION GET_PTAU(nc,n_tbins,n_pbins,options,tau,ctp,cph) RESULT(ptau)
-    
+
     IMPLICIT NONE
 
     INTEGER, INTENT(in)                  :: nc,n_tbins,n_pbins
@@ -115,9 +115,9 @@ CONTAINS
             tmpptau)
 
     ptau(1:n_tbins,1:n_pbins,2) = tmpptau
-    
+
   END FUNCTION GET_PTAU
-  
+
   FUNCTION UPPER_CLOUD(nc,nlev,inter)
 
     !
@@ -153,13 +153,13 @@ CONTAINS
     DO inl = 1, nlev  ! loop over levels from TOA to surface
        ac_tau(1:nc,inl+1) = SUM(inter%tau_profile(1:nc,2:inl),DIM=2)
 
-       WHERE (inter%tau_profile(1:nc,inl).GT.0) 
-          WHERE (ac_tau(1:nc,inl+1).LE.ucLim) 
+       WHERE (inter%tau_profile(1:nc,inl).GT.0)
+          WHERE (ac_tau(1:nc,inl+1).LE.ucLim)
              ! The whole layer is in the upper part of the cloud
              upper_cloud(1:nc,inl) = 1._wp
           ELSEWHERE
              ! passed the threshold of upper cloud. find fraction of
-             ! "by-how-much" 
+             ! "by-how-much"
              WHERE (ac_tau(1:nc,inl).LT.ucLim)
                 ! part of the upper cloud is in this model layer
                 upper_cloud(1:nc,inl) = &
@@ -210,15 +210,15 @@ CONTAINS
 
        phase(1:nc) =NINT( num(1:nc)/den(1:nc) )
     END WHERE
-    
+
   END FUNCTION CLOUD_WATER_PHASE
 
   FUNCTION CLOUD_EFFECTIVE_RADIUS(d1,ins,nlev,sub,inter,optics)
-    ! 
+    !
     ! Find the effective radius using the MODIS approach:
 
     !1) Compute model TOA reflectance
-    !    
+    !
     !   a) Using polynomial fits, compute asymmetry parameter (g) and
     !   single-scattering albedo (ω0) using the model radii for ice and
     !   liquid, we look up single values of g_i, g_w, ω0_i and ω0_w.
@@ -234,7 +234,7 @@ CONTAINS
     !2) Compute the predicted TOA reflectance for a range of radii .
     !
     !   a) Same as 1a, but using a range of radii for both ice and
-    !   liquid. We get now have vectors for g_i, g_w, ω0_i and ω0_w.
+    !   liquid. We now have vectors for g_i, g_w, ω0_i and ω0_w.
     !
     !   b) USE two stream method to obtain reflectance, but only for cloud
     !   phase, which was determined earlier.  3) Minimize #2 to #1. The
@@ -277,7 +277,7 @@ CONTAINS
        ! scops says it's cloudy
        g0_column (1:nlev) = sub%g0(d1,1:nlev)
        w0_column (1:nlev) = sub%w0(d1,1:nlev)
-       tau_column(1:nlev) = inter%tau_profile(ins,1:nlev) 
+       tau_column(1:nlev) = inter%tau_profile(ins,1:nlev)
     END WHERE
 
     obs_Refl_nir = COMPUTE_TOA_REFLECTANCE(nlev, &
@@ -288,7 +288,7 @@ CONTAINS
     ! --------------------------------
     ! GET THE MINIMIZED SOLUTION FOR A GIVEN PHASE
     ! 1) Calculate some predicted reflectances based on the
-    ! trial effective radius's 
+    ! trial effective radius's
     ! 2) Minimize the trial refl vs. calculated from the model
     ! to find the best fitting effective radius for a pre-decided
     ! cloud phase
@@ -296,11 +296,11 @@ CONTAINS
 
     predicted_Refl_nir(1:num_trial_res)=TWO_STREAM_REFLECTANCE(inter%tau(ins),&
          optics%g0(1:num_trial_res),optics%w0(1:num_trial_res))
-    
+
     re_min   = optics%re%min
     re_max   = optics%re%max
     trial_re = optics%re%trial
-    
+
     cloud_effective_radius = INTERPOLATE_TO_MIN(trial_re(1:num_trial_res), &
          predicted_Refl_nir(1:num_trial_res), obs_Refl_nir)
 
@@ -321,7 +321,7 @@ CONTAINS
   END FUNCTION CLOUD_EFFECTIVE_RADIUS
 
   FUNCTION CLOUD_EFFECTIVE_RADIUS_NATIVE(d1,ins,nlev,sub,inter) RESULT(ref)
-    ! 
+    !
     ! Calculate the model native bulk effective radius. This is done
     ! by finding the effective radius from the upper 1 optical depth of
     ! the cloud.
@@ -365,9 +365,9 @@ CONTAINS
     END IF
 
   END FUNCTION CLOUD_EFFECTIVE_RADIUS_NATIVE
-  
+
   FUNCTION GET_CLOUDTYPE(d1,nc,inter,options,sunlit) RESULT(cflag)
-    
+
     ! Make a variable that saves the cloud type based purely on optical depth
     !
     ! Salomon.Eliasson@smhi.se
@@ -377,7 +377,7 @@ CONTAINS
     INTEGER, INTENT(in)          :: d1,nc
     TYPE(internal), INTENT(in)   :: inter
     TYPE(name_list), INTENT(in)  :: options
-    INTEGER, INTENT(in)          :: sunlit 
+    INTEGER, INTENT(in)          :: sunlit
 
     ! OUT
     integer :: cflag(nc)
@@ -414,7 +414,7 @@ CONTAINS
        ! Combine the information on the probability of detection for a
        ! geographical location and for a optical depth
        ! interval. Mostly, the POD is higher the higher the optical
-       ! depth. The column is considered cloudy if a random number, x, 
+       ! depth. The column is considered cloudy if a random number, x,
        ! assigned to the (lon,lat,column) before the simulation is
        ! higher than x>(1-POD). I.e., the higher the POD the more
        ! likely this cloud is classified as cloudy. The POD is provided
@@ -430,7 +430,7 @@ CONTAINS
        DO lvl=1,SIZE(options%sim_aux%POD_tau_bin_edges)-1
           WHERE(inter%tau(1:nc).GT.options%sim_aux%POD_tau_bin_edges(lvl)&
                & .AND.inter%tau.LE.options%sim_aux%POD_tau_bin_edges(lvl+1))
-             
+
              cflag(1:nc)=MERGE(3,0,&
                   options%sim_aux%random_numbers(sunlit+1,d1,1:nc).GE.&
                   (1-SPREAD(options%sim_aux%POD_layers(d1,lvl,sunlit+1),1,nc)))
