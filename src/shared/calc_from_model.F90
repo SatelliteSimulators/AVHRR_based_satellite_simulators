@@ -67,7 +67,7 @@ CONTAINS
     INTEGER :: i
 
     PRINT *, "--- Calculating model vertical properties"
-    
+
     !==================================================
     ! initialise some variables
     !==================================================
@@ -163,10 +163,10 @@ CONTAINS
     !
     ! J.F. Meirink, 2014-07-09
     !
-    ! Parameterizations for: 
-    ! - liquid clouds: Martin et al., JAS,
+    ! Parameterizations for:
+    ! - liquid clouds: Martin et al., JAS, 1994.
     !
-    ! 1994.  - ice clouds: f(T,IWC): Sun and Rikus (1999) revised by
+    ! - ice clouds: f(T,IWC): Sun and Rikus (1999) revised by
     ! Sun (2001). Note: The latitude dependence is based on the observations
     ! that tropical clouds typically have larger particles than extra
     ! tropical clouds, e.g., Field et. al., 2007, JAS
@@ -181,8 +181,8 @@ CONTAINS
     ! zntot: exactly equation 12 & 13 in paper
     ! lreff[micron] = (3*lwc_gm3 / (4*pi*rho_w*k*Ntot) )^ 1/3 (eq 11), but then revised
     ! where L=LWC
-  
-    WHERE( CLWC_gm3(1:ng,1:nl) > 0) 
+
+    WHERE( CLWC_gm3(1:ng,1:nl) > 0)
        zntot(1:ng,1:nl) =                           &
             (1-lsm_2d(1:ng,1:nl))*                  &
             (a_sea*a_conc_sea**2 + b_sea*a_conc_sea + c_sea) + &
@@ -244,11 +244,11 @@ CONTAINS
     !==================================================
 
     S%lwp(1:ng,1:nl) = &
-         CLWC_gm3(1:ng,1:nl)*DGEOZ(1:ng,1:nl)/1.e3 ![kg/m2] 
+         CLWC_gm3(1:ng,1:nl)*DGEOZ(1:ng,1:nl)/1.e3 ![kg/m2]
     S%ltau(1:ng,1:nl) = &
          (1e3*S%lwp(1:ng,1:nl)*3)/(2*rho_w*S%lreff(1:ng,1:nl))
     S%iwp(1:ng,1:nl) = &
-         CIWC_gm3(1:ng,1:nl)*DGEOZ(1:ng,1:nl)/1.e3 ![kg/m2] 
+         CIWC_gm3(1:ng,1:nl)*DGEOZ(1:ng,1:nl)/1.e3 ![kg/m2]
     S%itau(1:ng,1:nl) = &
          (1e3*S%iwp(1:ng,1:nl)*3)/(2*rho_i*S%ireff(1:ng,1:nl))
 
@@ -270,7 +270,7 @@ CONTAINS
        S%IWC(1:ng,1:nl-1) = &
             (CIWC_gm3(1:ng,1:nl-1)+CIWC_gm3(1:ng,2:nl))/2
     END IF
-    
+
   END SUBROUTINE CALC_MODEL_VERTICAL_PROPERTIES
 
   SUBROUTINE GET_MODEL_SSA_AND_G(sub,LUT,ng,nl)
@@ -290,10 +290,10 @@ CONTAINS
 
     ! internal
     REAL(wp), DIMENSION(ng,nl) :: water_g,ice_g,water_w0,ice_w0
-    
+
     PRINT *, "--- Calculating model cloud optical properties"
 
-    water_g (1:ng,1:nl) = 0.0   
+    water_g (1:ng,1:nl) = 0.0
     water_w0(1:ng,1:nl) = 0.0
     ice_g   (1:ng,1:nl) = 0.0
     ice_w0  (1:ng,1:nl) = 0.0
@@ -321,12 +321,12 @@ CONTAINS
 !                     GET_G_NIR  (sub%ireff(i,j),LUT%ice,phaseIsIce)
 !                ice_w0  (i,j) = &
 !                     GET_SSA_NIR(sub%ireff(i,j),LUT%ice,phaseIsIce)
-!                
+!
 !             end if
 !
 !             ! combined cloud scattering albedo
 !             sub%g0 (i,j) = &
-!                  (sub%ltau(i,j)*water_g(i,j) + sub%itau(i,j)*ice_g(i,j)) / & 
+!                  (sub%ltau(i,j)*water_g(i,j) + sub%itau(i,j)*ice_g(i,j)) / &
 !                  sub%tau(i,j)
 !
 !          end if
@@ -334,7 +334,7 @@ CONTAINS
 !    end do
 
     WHERE (.NOT.sub%data_mask .AND. SPREAD(sub%sunlit,2,nl).EQ.1 )
-       WHERE (sub%tau(1:ng,1:nl) > 0) 
+       WHERE (sub%tau(1:ng,1:nl) > 0)
           ! there is a cloud
 
           water_g (1:ng,1:nl) = &
@@ -348,9 +348,9 @@ CONTAINS
 
           sub%w0 (1:ng,1:nl) = &
                (sub%ltau(1:ng,1:nl)*water_w0(1:ng,1:nl) + &
-               sub%itau(1:ng,1:nl)*ice_w0(1:ng,1:nl)) / & 
+               sub%itau(1:ng,1:nl)*ice_w0(1:ng,1:nl)) / &
                sub%tau(1:ng,1:nl)
-          
+
           sub%g0(1:ng,1:nl) = ( &
                sub%ltau(1:ng,1:nl)*water_g(1:ng,1:nl)*water_w0(1:ng,1:nl) + &
                sub%itau(1:ng,1:nl)*ice_g(1:ng,1:nl)*ice_w0(1:ng,1:nl) ) / &
