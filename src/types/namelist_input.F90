@@ -29,9 +29,9 @@ MODULE namelist_input
      !             #SIM='sim',#MODEL=options%model(A),#Y4=year(i4),#M2=month(i2),
      !             #D2=day(i2),#Y2=year(i2),#M1=month(i1),#D1=day(i1),#UTC=utc(i2),
      !             #NODE=string,#VERSION=string,#STRING=string
-     !             (e.g. "/some/where/#Y4/#M2/#D2/file_#Y4#M2#D2.nc", where  
+     !             (e.g. "/some/where/#Y4/#M2/#D2/file_#Y4#M2#D2.nc", where
      !               Y4=year (i0.4),M2=month (i0.2), and D2=day (i0.2)
-     !  sim_output : 
+     !  sim_output :
      !             Same as story as model_input_regexp, but for the output NETCDF files
 
      CHARACTER(len=1000) :: sim_output, model_input
@@ -63,22 +63,19 @@ MODULE namelist_input
      ! doL2bsampling : .true. = do the above
      !
      ! interpolate   : .true. = don't just sample the equatorial overpass time,
-     !                          linearly interpolate it so that the 
+     !                          linearly interpolate it so that the
      !                          local time matches this time everywhere
      !
-     ! local_time    : If you provide a local time, the model will
-     !                 be sampled at this time
      !
      LOGICAL           :: doL2bSampling
      LOGICAL           :: interpolate
      CHARACTER(len=20) :: satellite
      CHARACTER(len=3)  :: node
-     REAL(wp)          :: local_time
   END TYPE L2b
   TYPE cloudMicrophysics
      ! ------ cloudMicrophys ----------
      !
-     ! 'cf_method'         technique to determine cloud fraction. 
+     ! 'cf_method'         technique to determine cloud fraction.
      !                     0 = global constant (tau_min)
      !                     1 = probability of detection based on optical depth bins
      !
@@ -91,8 +88,8 @@ MODULE namelist_input
 
   END TYPE cloudMicrophysics
   TYPE illumination
-     ! ------ daynight ----------                                                       
-     !                                                                                  
+     ! ------ daynight ----------
+     !
      !   daylim   = maximum solar zenith angle for daylight
      !   nightlim = minimum solar zenith angle for nighttime
      real(wp):: daylim,nightlim
@@ -144,7 +141,7 @@ MODULE namelist_input
      ! Cloud cover
      LOGICAL :: cfc,cfc_day,cfc_low,cfc_mid,cfc_high,icf,lcf
      ! Cloud top products
-     LOGICAL :: cth,ctp,ctp_log,ctt,cth_corrected,ctp_corrected,ctt_corrected      
+     LOGICAL :: cth,ctp,ctp_log,ctt,cth_corrected,ctp_corrected,ctt_corrected
      ! Cloud effective radius
      LOGICAL :: ireff,lreff,ireff3D,lreff3D,ref_ice,ref_liq,cer_ice,cer_liq
      ! Cloud visible optical thickness
@@ -156,15 +153,15 @@ MODULE namelist_input
      ! ancillary data
      LOGICAL :: solzen,land_sea,time_of_day
      ! direct model variables
-     LOGICAL :: CI,SKT,TCC,TCWV       
+     LOGICAL :: CI,SKT,TCC,TCWV
      ! brightness temperature
      LOGICAL :: Tb,Tb_clr,tau_subcolumn,Tb_subcolumn
-     
+
   END TYPE variablesContainer
   TYPE name_list
      TYPE(paths)             :: paths
      TYPE(epoch)             :: epoch
-     TYPE(L2b)               :: L2b   
+     TYPE(L2b)               :: L2b
      TYPE(cloudMicrophysics) :: cloudMicrophys
      TYPE(illumination)      :: daynight
      TYPE(ctp_tau)           :: ctp_tau
@@ -172,13 +169,13 @@ MODULE namelist_input
      TYPE(variablesContainer):: vars
      TYPE(simulator_aux)     :: sim_aux
 
-     ! ---- debug -------- 
+     ! ---- debug --------
      !
      ! dbg		: debug flag, 0 = no debug; -1 = use earlier
-     ! 		: version of sim_clara; >0 = debug 
+     ! 		: version of sim_clara; >0 = debug
      !		: (integer specifies npts to print)
-     ! 
-     ! 'ncols'              = number of subcolumns used in the model grid 
+     !
+     ! 'ncols'              = number of subcolumns used in the model grid
      ! 'namelist_file'
      ! 'model'              = string name of the model
      ! 'overwrite_existing' = If .TRUE. it will overwite existing simulated files
@@ -186,7 +183,7 @@ MODULE namelist_input
      ! 'simVersionNumber'   = version of this software
      ! 'CDR'                = Name of the climate data record
      !                        (cloud_cci, clara_a2, clara_a3)
-      
+
      INTEGER                 :: dbg
      CHARACTER(len=100)      :: model
      CHARACTER(len=1000)     :: namelist_file
@@ -238,7 +235,7 @@ CONTAINS
     REWIND(10)
     READ(10,other)
     REWIND(10)
-    CLOSE(10) 
+    CLOSE(10)
 
     X%epoch%year          = year
     X%epoch%month         = month
@@ -255,7 +252,7 @@ CONTAINS
 
     print*,trim(sim_output)
     print*,trim(X%paths%sim_output)
- 
+
     IF (use_satellite) THEN
        CALL namelist_satellite(x,file)
     ELSE
@@ -264,7 +261,7 @@ CONTAINS
         X%L2b%node             = ''
         X%L2b%satellite        = 'none'
     END IF
-    
+
   END SUBROUTINE common_namelist
 
   SUBROUTINE deallocate_namelist(options)
@@ -334,22 +331,20 @@ CONTAINS
     LOGICAL                        :: doL2bSampling, interpolate
     CHARACTER(len=20)              :: sat
     CHARACTER(len=3)               :: node
-    REAL(wp)                       :: local_time                           
-    NAMELIST/satellite/sat,node,doL2bSampling,interpolate,local_time
+    NAMELIST/satellite/sat,node,doL2bSampling,interpolate
 
     OPEN(10,file=file,status='old')
     READ(10,satellite)
-    CLOSE(10) 
+    CLOSE(10)
 
     X%L2b%node                 = node
     X%L2b%doL2bSampling        = doL2bSampling
     X%L2b%interpolate          = interpolate
-    X%L2b%local_time           = local_time
     X%L2b%satellite            = sat
 
   END SUBROUTINE namelist_satellite
 
-  ! 
+  !
   ! CTP_Tau
   !
   SUBROUTINE namelist_ctp_tau(x,file)
@@ -377,7 +372,7 @@ CONTAINS
     tbin_edges(1:tmpbinsize) = tmpbinval
     pbin_edges(1:tmpbinsize) = tmpbinval
     READ(10,ctp_tau_hist_vec)
-    CLOSE(10) 
+    CLOSE(10)
 
     ! ----------------
     ! CTP-TAU histograms
@@ -386,7 +381,7 @@ CONTAINS
     DO WHILE (pbin_edges(n_pbins) .NE. tmpbinval)
        n_pbins = n_pbins+1
     END DO
-    n_pbins  = n_pbins-2 ! -2 since length(pbin_edges)=n_pbins+1 
+    n_pbins  = n_pbins-2 ! -2 since length(pbin_edges)=n_pbins+1
     n_tbins = 1;
     DO WHILE (tbin_edges(n_tbins) .NE. tmpbinval)
        n_tbins = n_tbins+1
@@ -421,7 +416,7 @@ CONTAINS
 
   !
   ! Day night
-  ! 
+  !
   SUBROUTINE namelist_daynight(x,file)
 
     CHARACTER(len=*),INTENT(in)    :: file
@@ -431,8 +426,8 @@ CONTAINS
     NAMELIST/daynight/daylim,nightlim
 
     OPEN(10,file=file,status='old')
-    READ(10,daynight)  
-    CLOSE(10) 
+    READ(10,daynight)
+    CLOSE(10)
 
     X%daynight%daylim      = daylim
     X%daynight%nightlim    = nightlim
@@ -451,11 +446,11 @@ CONTAINS
     NAMELIST/cloudMicrophys/cf_method,tau_min
 
     OPEN(10,file=file,status='old')
-    READ(10,cloudMicrophys)  
+    READ(10,cloudMicrophys)
     CLOSE(10)
 
     X%cloudMicrophys%cf_method          = cf_method
     X%cloudMicrophys%tau_min            = tau_min
   END SUBROUTINE namelist_microphys
-  
+
 END MODULE namelist_input
