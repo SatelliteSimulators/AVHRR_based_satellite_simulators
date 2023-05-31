@@ -141,7 +141,7 @@ MODULE namelist_input
      ! Cloud cover
      LOGICAL :: cfc,cfc_day,cfc_low,cfc_mid,cfc_high,icf,lcf
      ! Cloud top products
-     LOGICAL :: cth,ctp,ctp_log,ctt,cth_corrected,ctp_corrected,ctt_corrected
+     LOGICAL :: cth,ctp,ctp_log,ctt,cth_corrected,ctp_corrected,ctt_corrected,cflag_tot
      ! Cloud effective radius
      LOGICAL :: ireff,lreff,ireff3D,lreff3D,ref_ice,ref_liq,cer_ice,cer_liq
      ! Cloud visible optical thickness
