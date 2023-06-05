@@ -140,17 +140,13 @@ contains
    END IF
 
   END SUBROUTINE allocate_sim_input
-  SUBROUTINE initialise_sim_input(sub,options,ngrids,nlev,lat,sat)
+  SUBROUTINE initialise_sim_input(sub,options,ngrids,nlev)
 
     IMPLICIT NONE
 
     TYPE(subset), INTENT(inout)   :: sub
-    TYPE(satellite),OPTIONAL,INTENT(in)    :: sat
     TYPE(name_list),INTENT(in)    :: options
     INTEGER, INTENT(in)           :: ngrids,nlev
-    REAL(wp), OPTIONAL,INTENT(in) :: lat(ngrids)
-
-    INTEGER                       :: jlat
 
     sub%data_mask       (1:ngrids,1:nlev   )= .FALSE.
     sub%height          (1:ngrids,1:nlev+1 )= 0._wp
