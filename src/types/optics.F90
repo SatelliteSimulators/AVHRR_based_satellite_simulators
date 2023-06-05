@@ -18,14 +18,14 @@ MODULE optics_m
      REAL(wp), ALLOCATABLE :: g0_large(:)
      REAL(wp), ALLOCATABLE :: w0_large(:)
   END type polyfit
-     
+
   TYPE effective_radius
      ! single scattering albedo and assymetry parameter at 1.6 micron
      ! and 3.7 micron
 
      ! fit functions
      TYPE(polyfit) :: fit
-    
+
      ! effective radius in LUT
      REAL(wp), ALLOCATABLE :: Re(:)
 
@@ -100,7 +100,7 @@ MODULE optics_m
        deallocate_optics
 
 CONTAINS
-    
+
   ELEMENTAL FUNCTION populate_effective_radius_LUT(CDR,phase,is_ch3B)&
        & RESULT(re)
 
@@ -138,120 +138,167 @@ CONTAINS
     !
 
 
-    IMPLICIT NONE
+   IMPLICIT NONE
 
-    CHARACTER(*),INTENT(in) :: CDR
-    INTEGER, INTENT(in) :: phase ! liquid=1, ice=2
-    LOGICAL, INTENT(in) :: is_ch3B
-    TYPE(effective_radius):: re
-    INTEGER :: i
-    
-    SELECT CASE(CDR)
-    CASE('clara-a2','clara-a3')
-       IF (phase.EQ.1) re%nRe = 8
-       IF (phase.EQ.2) re%nRe = 9
-    CASE('cloud_cci')
-       IF (phase.EQ.1) re%nRe = 12
-       IF (phase.EQ.2) re%nRe = 23
-    END SELECT
-    ALLOCATE(re%Re(re%nRe))
-    ALLOCATE(re%trial(num_trial_res))
-     
-    SELECT CASE(CDR)
+   CHARACTER(*),INTENT(in) :: CDR
+   INTEGER, INTENT(in) :: phase ! liquid=1, ice=2
+   LOGICAL, INTENT(in) :: is_ch3B
+   TYPE(effective_radius):: re
+   INTEGER :: i
 
-    CASE('clara-a2','clara-a3')
-      
-       ! --------------
-       !    CLARA
-       ! -------------- 
-       ALLOCATE(re%fit%g0_small(4),re%fit%g0_large(4),re%fit%w0_small(4),&
-            re%fit%w0_large(3))
+   SELECT CASE(CDR)
+   CASE('clara-a2')
+      IF (phase.EQ.1) re%nRe = 8
+      IF (phase.EQ.2) re%nRe = 9
+   CASE('clara-a3')
+      IF (phase.EQ.1) re%nRe = 8
+      IF (phase.EQ.2) re%nRe = 11
+   CASE('cloud_cci')
+      IF (phase.EQ.1) re%nRe = 12
+      IF (phase.EQ.2) re%nRe = 23
+   END SELECT
 
-       
-       ! Always use cubic for CLARA
-       ! For liquid, small means less than 10 microns, large is
-       ! greater
-       IF (phase.EQ.1) THEN! liquid
-          re%Re    = (/3.00,4.25,6.00,8.50,12.00,17.00,24.00,34.00/)
-          IF (is_ch3B) THEN
-             re%fit%g0_small = (/0.917106,-0.051528, 0.005521,-0.000162/)
-             re%fit%g0_large = (/0.649317, 0.020399,-0.000658, 0.000008/)
-             re%fit%w0_small = (/0.992618,-0.001896,-0.001386, 0.000070/)
-             re%fit%w0_large = (/0.990696,-0.009177, 0.000080/)
-          ELSE
-             re%fit%g0_small = (/0.754852, 0.013001,-0.000500,0.000007/) 
-             re%fit%g0_large = (/0.754852, 0.013001,-0.000500,0.000007/) 
-             re%fit%w0_small = (/1.000119,-0.000630, 0.000002/) 
-             re%fit%w0_large = (/1.000119,-0.000630, 0.000002/) 
-          END IF
-       ELSEIF (phase.EQ.2) THEN !ice
-          ! For ice, small means less than 30 microns, large is greater
-          re%Re    = (/5.00,7.07,10.00,14.15,20.00,28.28,40.00,56.58,80.00/)
-          IF (is_ch3B) THEN
-             re%fit%g0_small = (/0.682793, 0.017103,-0.000456,0.000005/)
-             re%fit%g0_large = (/0.829044, 0.003454,-0.000023/)
-             re%fit%w0_small = (/0.984572,-0.023210, 0.000538,-0.000005/)
-             re%fit%w0_large = (/0.773026,-0.005482, 0.000035/)
-          ELSE
-             re%fit%g0_small = (/0.774316, 0.001323,-0.000001/)
-             re%fit%g0_large = (/0.774316, 0.001323,-0.000001/)
-             re%fit%w0_small = (/0.999659,-0.002548, 0.000006/)
-             re%fit%w0_large = (/0.999659,-0.002548, 0.000006/)
-          END IF
-       END IF
+   ALLOCATE(re%Re(re%nRe))
+   ALLOCATE(re%trial(num_trial_res))
 
-    CASE('cloud_cci')
-       ! --------------
-       !    Cloud_cci
-       ! --------------
+   ! In COSP y=ax^2+bx+c is represented as y=c+x*(b+x*a) and
+   SELECT CASE(CDR)
 
-       ALLOCATE(re%fit%g0_small(5),re%fit%g0_large(3),&
-            re%fit%w0_small(4),re%fit%w0_large(3))
-       
-       IF (phase.EQ.1) THEN! liquid
-          re%Re = (/1,3,5,7,9,11,13,15,17,19,21,23/)
-          IF (is_ch3B) THEN
-             ! For liquid, small means less than 10 microns, large is greater
-             re%fit%g0_small = (/0.348833, 0.366684,-0.097879,0.010294,-0.000371/)
-             re%fit%g0_large = (/0.665379, 0.017114,-0.000356/)
-             re%fit%w0_small = (/0.953224, 0.019062,-0.004726,0.000229/)
-             re%fit%w0_large = (/0.991867,-0.009941, 0.000103/)
-          ELSE                                     
-             re%fit%g0_small = (/0.894848,-0.087999, 0.023229,-0.002236,0.000074/)
-             re%fit%g0_large = (/0.804219, 0.005214,-0.000102/)
-             re%fit%w0_small = (/0.992141,-0.000624, 0.000004/)
-             re%fit%w0_large = (/1.608582,-0.177541, 0.018427,-0.000824,0.000013/)
+   CASE('clara-a2')
 
-          END IF
-       ELSEIF (phase.EQ.2) THEN !ice
+      ! For liquid, small means less than 10 microns, large is greater
+      IF (phase.EQ.1) THEN! liquid
+         re%Re    = (/3.00,4.25,6.00,8.50,12.00,17.00,24.00,34.00/)
+         IF (is_ch3B) THEN
+            ALLOCATE(re%fit%g0_small(4),re%fit%g0_large(4))
+            re%fit%g0_small = (/0.917106,-0.051528, 0.005521,-0.000162/)
+            re%fit%g0_large = (/0.649317, 0.020399,-0.000658, 0.000008/)
+            ALLOCATE(re%fit%w0_small(4),re%fit%w0_large(3))
+            re%fit%w0_small = (/0.992618,-0.001896,-0.001386, 0.000070/)
+            re%fit%w0_large = (/0.990696,-0.009177, 0.000080/)
+         ELSE
+            ALLOCATE(re%fit%g0_small(4),re%fit%g0_large(4))
+            re%fit%g0_small = (/0.754852, 0.013001,-0.000500,0.000007/)
+            re%fit%g0_large = (/0.754852, 0.013001,-0.000500,0.000007/)
+            ALLOCATE(re%fit%w0_small(3),re%fit%w0_large(3))
+            re%fit%w0_small = (/1.000119,-0.000630, 0.000002/)
+            re%fit%w0_large = (/1.000119,-0.000630, 0.000002/)
+         END IF
+      ELSEIF (phase.EQ.2) THEN !ice
+         ! For ice, small means less than 30 microns, large is greater
+         re%Re    = (/5.00,7.07,10.00,14.15,20.00,28.28,40.00,56.58,80.00/)
+         IF (is_ch3B) THEN
+            ALLOCATE(re%fit%g0_small(4),re%fit%g0_large(3))
+            re%fit%g0_small = (/0.682793, 0.017103,-0.000456,0.000005/)
+            re%fit%g0_large = (/0.829044, 0.003454,-0.000023/)
+            ALLOCATE(re%fit%w0_small(4),re%fit%w0_large(3))
+            re%fit%w0_small = (/0.984572,-0.023210, 0.000538,-0.000005/)
+            re%fit%w0_large = (/0.773026,-0.005482, 0.000035/)
+         ELSE
+            ALLOCATE(re%fit%g0_small(3),re%fit%g0_large(3))
+            re%fit%g0_small = (/0.774316, 0.001323,-0.000001/)
+            re%fit%g0_large = (/0.774316, 0.001323,-0.000001/)
+            ALLOCATE(re%fit%w0_small(3),re%fit%w0_large(3))
+            re%fit%w0_small = (/0.999659,-0.002548, 0.000006/)
+            re%fit%w0_large = (/0.999659,-0.002548, 0.000006/)
+         END IF
+      END IF
 
-          re%Re = (/4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,&
-               72,76,80,84,88,92/)
+   CASE('clara-a3')
 
-          ! For ice, small means less than 30 microns, large is greater
-          IF (is_ch3B) THEN
-             re%fit%g0_small = (/ 0.518512, 0.019587,-0.000833, 0.000013/)
-             re%fit%g0_large = (/-0.272164, 0.056633,-0.000913, 0.000005/)
-             re%fit%w0_small = (/ 0.957291,-0.010000, 0.000218,-0.000004/)
-             re%fit%w0_large = (/ 1.374435,-0.033709, 0.000493,-0.000002/)
-          ELSE
-             re%fit%g0_small = (/0.688700, 0.011752,-0.000512,0.000008/)
-             re%fit%g0_large = (/0.389050, 0.023442,-0.000378,0.000002/)
-             re%fit%w0_small = (/1.001719,-0.002956, 0.000008/)
-             re%fit%w0_large = (/1.001719,-0.002956, 0.000008/)
-          END IF
-       END IF
-    END SELECT
-    re%min = MINVAL(re%Re)
-    re%max = MAXVAL(re%Re)
-    re%trial = Re%min + (Re%max - Re%min)/ &
-         (num_trial_res-1) * (/ (i - 1, i = 1, num_trial_res) /)
-    
-  END FUNCTION populate_effective_radius_LUT
+      ! For liquid, small means less than 10 microns, large is greater
+      IF (phase.EQ.1) THEN! liquid
+         re%Re    = (/3.00,4.25,6.00,8.50,12.00,17.00,24.00,34.00/)
+         IF (is_ch3B) THEN
+            ALLOCATE(re%fit%g0_small(3),re%fit%g0_large(4))
+            re%fit%g0_small = (/0.919734, -0.038016, 0.002498/)
+            re%fit%g0_large = (/0.611819, 0.027453, -0.000983, 0.000012/)
+            ALLOCATE(re%fit%w0_small(4),re%fit%w0_large(3))
+            re%fit%w0_small = (/0.986414, 0.002607, -0.002204, 0.000108/)
+            re%fit%w0_large = (/0.988073, -0.009212, 0.000078/)
+         ELSE
+            ALLOCATE(re%fit%g0_small(3),re%fit%g0_large(4))
+            re%fit%g0_small = (/0.729135, 0.018741, -0.000696/)
+            re%fit%g0_large = (/0.788729, 0.008174, -0.000279, 0.000003/)
+            ALLOCATE(re%fit%w0_small(3),re%fit%w0_large(3))
+            re%fit%w0_small = (/1.000046, -0.000625, 0.000002/)
+            re%fit%w0_large = (/1.000046, -0.000625, 0.000002/)
+         END IF
+      ELSEIF (phase.EQ.2) THEN !ice
+         ! For ice, small means less than 30 microns, large is greater
+         re%Re   = (/5.00,7.50,10.00,12.50,15.00,20.00,25.00,30.00,40.00,50.00,60.00/)
+         IF (is_ch3B) THEN
+            ALLOCATE(re%fit%g0_small(4),re%fit%g0_large(3))
+            re%fit%g0_small = (/0.784704, -0.000992, 0.000357, -0.000007/)
+            re%fit%g0_large = (/0.774883, 0.004755, -0.000035/)
+            ALLOCATE(re%fit%w0_small(4),re%fit%w0_large(3))
+            re%fit%w0_small = (/0.970288, -0.017169, 0.000313, -0.000002/)
+            re%fit%w0_large = (/0.853475, -0.007290, 0.000053/)
+         ELSE
+            ALLOCATE(re%fit%g0_small(4),re%fit%g0_large(3))
+            re%fit%g0_small = (/0.782730, -0.002480, 0.000173, -0.000003/)
+            re%fit%g0_large = (/0.761282, 0.001005, -0.000004/)
+            re%fit%w0_small = (/1.000128, -0.001906, 0.000005/)
+            re%fit%w0_large = (/1.000128, -0.001906, 0.000005/)
+         END IF
+      END IF
+
+   CASE('cloud_cci')
+      ! --------------
+      !    Cloud_cci
+      ! --------------
+
+      IF (phase.EQ.1) THEN! liquid
+         re%Re = (/1,3,5,7,9,11,13,15,17,19,21,23/)
+         IF (is_ch3B) THEN
+            ! For liquid, small means less than 10 microns, large is greater
+            ALLOCATE(re%fit%g0_small(5),re%fit%g0_large(3))
+            re%fit%g0_small = (/0.348833, 0.366684,-0.097879,0.010294,-0.000371/)
+            re%fit%g0_large = (/0.665379, 0.017114,-0.000356/)
+            ALLOCATE(re%fit%w0_small(4),re%fit%w0_large(3))
+            re%fit%w0_small = (/0.953224, 0.019062,-0.004726,0.000229/)
+            re%fit%w0_large = (/0.991867,-0.009941, 0.000103/)
+         ELSE
+            ALLOCATE(re%fit%g0_small(5),re%fit%g0_large(3))
+            re%fit%g0_small = (/0.894848,-0.087999, 0.023229,-0.002236,0.000074/)
+            re%fit%g0_large = (/0.804219, 0.005214,-0.000102/)
+            ALLOCATE(re%fit%w0_small(3),re%fit%w0_large(5))
+            re%fit%w0_small = (/0.992141,-0.000624, 0.000004/)
+            re%fit%w0_large = (/1.608582,-0.177541, 0.018427,-0.000824,0.000013/)
+         END IF
+      ELSEIF (phase.EQ.2) THEN !ice
+
+         re%Re = (/4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,&
+                  72,76,80,84,88,92/)
+
+         ! For ice, small means less than 30 microns, large is greater
+         IF (is_ch3B) THEN
+             ALLOCATE(re%fit%g0_small(4),re%fit%g0_large(4))
+            re%fit%g0_small = (/ 0.518512, 0.019587,-0.000833, 0.000013/)
+            re%fit%g0_large = (/-0.272164, 0.056633,-0.000913, 0.000005/)
+             ALLOCATE(re%fit%w0_small(4),re%fit%w0_large(4))
+            re%fit%w0_small = (/ 0.957291,-0.010000, 0.000218,-0.000004/)
+            re%fit%w0_large = (/ 1.374435,-0.033709, 0.000493,-0.000002/)
+         ELSE
+            ALLOCATE(re%fit%g0_small(4),re%fit%g0_large(4))
+            re%fit%g0_small = (/0.688700, 0.011752,-0.000512,0.000008/)
+            re%fit%g0_large = (/0.389050, 0.023442,-0.000378,0.000002/)
+            ALLOCATE(re%fit%w0_small(3),re%fit%w0_large(3))
+            re%fit%w0_small = (/1.001719,-0.002956, 0.000008/)
+            re%fit%w0_large = (/1.001719,-0.002956, 0.000008/)
+         END IF
+      END IF
+   END SELECT
+   re%min = MINVAL(re%Re)
+   re%max = MAXVAL(re%Re)
+   re%trial = Re%min + (Re%max - Re%min)/ &
+              (num_trial_res-1) * (/ (i - 1, i = 1, num_trial_res) /)
+
+END FUNCTION populate_effective_radius_LUT
 
   SUBROUTINE deallocate_optics(LUT)
 
-    IMPLICIT NONE 
+    IMPLICIT NONE
 
     TYPE(optics_LUT), INTENT(inout) :: LUT
 
@@ -274,7 +321,7 @@ CONTAINS
          LUT%ice%optics%re%fit%w0_small,&
          LUT%ice%optics%re%fit%g0_large,&
          LUT%ice%optics%re%fit%w0_large)
-       
+
     IF (ALLOCATED(LUT%ice%albedo%Albedo)) THEN
        DEALLOCATE ( &
             LUT%ice%albedo%Albedo  ,&
