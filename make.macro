@@ -2,7 +2,9 @@
 # module add netCDF/4.8.1-HDF5-1.12.1-nsc1-intel-2018a-eb
 # module add buildenv-intel/2019.u1-bare
 # e.g., $NETCDF_DIR = /software/apps/netcdf/4.3.2/i1402-hdf5-1.8.14
-
+#
+# Use debug by e.g., make clara DEBUG=w
+ 
 NETCDF_INC = -I$(NETCDF_DIR)/include 
 NETCDF_LIB = -L$(NETCDF_DIR)/lib -lnetcdf -lnetcdff 
 
