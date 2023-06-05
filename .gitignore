@@ -2,3 +2,4 @@ obj/
 mod/
 src/.vscode/settings.json
 *.err
+NAMELIST_*
