@@ -9,7 +9,7 @@ MODULE CLARA_M
   USE COSP_KINDS,          ONLY: WP
   USE MODEL_INPUT,         ONLY: MODEL_AUX
   USE NAMELIST_INPUT,      ONLY: &
-       COMMON_NAMELIST,          & 
+       COMMON_NAMELIST,          &
        INITIALISE_VARIABLE_FLAG, &
        NAMELIST_CTP_TAU,         &
        NAMELIST_DAYNIGHT,        &
@@ -44,6 +44,7 @@ MODULE CLARA_M
      REAL(wp), ALLOCATABLE :: cfc_low       (:)
      REAL(wp), ALLOCATABLE :: cfc_mid       (:)
      REAL(wp), ALLOCATABLE :: cfc_high      (:)
+     INTEGER,  ALLOCATABLE :: cflag_tot     (:,:)
      REAL(wp), ALLOCATABLE :: cot_ice       (:)
      REAL(wp), ALLOCATABLE :: cot_liq       (:)
      REAL(wp), ALLOCATABLE :: cth           (:)
@@ -78,10 +79,10 @@ CONTAINS
     SUBROUTINE GET_NAMELIST_CLARA(x,file)
 
     IMPLICIT NONE
-    
+
     CHARACTER(len=*),INTENT(in)    :: file
     TYPE(name_list), INTENT(inout) :: x
-    
+
     CALL common_namelist   (x,file)
     CALL namelist_ctp_tau  (x,file)
     CALL namelist_daynight (x,file)
@@ -113,7 +114,7 @@ CONTAINS
 
     need2Average = (.NOT.options%L2b%doL2bSampling .OR. options%L2b%node.EQ."all")
 
-    ngrids  = aux%ngrids 
+    ngrids  = aux%ngrids
     n_tbins = options%ctp_tau%n_tbins
     n_pbins = options%ctp_tau%n_pbins
     ncol    = options%ncols
@@ -134,7 +135,7 @@ CONTAINS
     WRITE(filename, '(A,A,A)') &
          'data/microphysics/CLARA/cloud_properties/cloud_mask_limits_',&
          TRIM(options%CDR),'.nc'
-    
+
     ! THIS NEEDS TO BE HERE BECAUSE IT IS ONLY FOR CLARA SO FAR
     SELECT CASE (options%cloudMicrophys%cf_method)
 
@@ -208,7 +209,7 @@ CONTAINS
     options%sim_aux%LUT%ice%optics%w0  (1:num_trial_res) = 0._wp
     options%sim_aux%LUT%water%optics%g0(1:num_trial_res) = 0._wp
     options%sim_aux%LUT%water%optics%w0(1:num_trial_res) = 0._wp
-    
+
   END SUBROUTINE ALLOCATE_CLARA
 
   SUBROUTINE ALLOCATE_CLARA_SIM(IN,options,ngrids,n_pbins,n_tbins)
@@ -238,7 +239,7 @@ CONTAINS
              IN%ref_ice (ngrids),&
              IN%ref_liq (ngrids),&
              IN%tau     (ngrids))
-
+         ALLOCATE(IN%cflag_tot(ngrids,4))
          ALLOCATE(IN%hist2d_cot_ctp(ngrids,n_tbins,n_pbins,2))
 
   END SUBROUTINE ALLOCATE_CLARA_SIM
@@ -254,7 +255,7 @@ CONTAINS
 
     n_tbins = options%ctp_tau%n_tbins
     n_pbins = options%ctp_tau%n_pbins
-    
+
     CALL INITIALISE_CLARA_SIM(clara%av,ngrids,-999._wp,n_pbins,n_tbins)
 
     IF (ALLOCATED(clara%sum%ctp)) THEN
@@ -265,7 +266,7 @@ CONTAINS
        clara%numel%lcld (1:ngrids) = 0._wp
        clara%numel%day  (1:ngrids) = 0._wp
     END IF
-    
+
   END SUBROUTINE INITIALISE_CLARA
 
   SUBROUTINE INITIALISE_CLARA_SIM(IN,ngrids,fill,n_pbins,n_tbins)
@@ -291,8 +292,9 @@ CONTAINS
     IN%lwp      (1:ngrids) = fill
     IN%ref_ice  (1:ngrids) = fill
     IN%ref_liq  (1:ngrids) = fill
-    IN%tau      (1:ngrids) = fill      
+    IN%tau      (1:ngrids) = fill
 
+    IN%cflag_tot(1:ngrids,1:4) = 0
     IF (ALLOCATED(IN%hist2d_cot_ctp)) &
          IN%hist2d_cot_ctp(1:ngrids,1:n_tbins,1:n_pbins,1:2) = 0._wp
 
@@ -303,7 +305,7 @@ CONTAINS
     IMPLICIT NONE
     TYPE(clara_type), INTENT(inout)  :: clara
     TYPE(name_list),  INTENT(inout):: options
-    
+
     CALL DEALLOCATE_CLARA_SIM(clara%av)
 
     IF (ALLOCATED(clara%sum%ctp)) THEN
@@ -329,8 +331,8 @@ CONTAINS
     IMPLICIT NONE
     TYPE(clara_fields), INTENT(inout) :: IN
 
-    DEALLOCATE(IN%cfc           ,& 
-               IN%cfc_day       ,& 
+    DEALLOCATE(IN%cfc           ,&
+               IN%cfc_day       ,&
                IN%cfc_low       ,&
                IN%cfc_mid       ,&
                IN%cfc_high      ,&
@@ -345,50 +347,51 @@ CONTAINS
                IN%ref_ice       ,&
                IN%ref_liq       ,&
                IN%tau           )
-
+     DEALLOCATE(IN%cflag_tot)
     IF (ALLOCATED(IN%hist2d_cot_ctp)) DEALLOCATE(IN%hist2d_cot_ctp)
   END SUBROUTINE DEALLOCATE_CLARA_SIM
-  
+
   SUBROUTINE VARIABLES_CLARA(x,file)
 
     IMPLICIT NONE
     CHARACTER(len=*),INTENT(in)    :: file
     TYPE(name_list), INTENT(inout) :: x
     LOGICAL :: land_sea,solzen,time_of_day,cfc,cfc_day,cfc_low,&
-         cfc_mid,cfc_high,cot_ice,cot_liq,cth,ctp,ctp_log,ctt,iwp,&
+         cfc_mid,cfc_high,cot_ice,cflag_tot,cot_liq,cth,ctp,ctp_log,ctt,iwp,&
          lwp,hist2d_cot_ctp,ref_ice,ref_liq
-    
+
     NAMELIST/variables2run/land_sea,solzen,time_of_day,cfc,cfc_day,cfc_low,&
-         &cfc_mid,cfc_high,cot_ice,cot_liq,cth,ctp,ctp_log,ctt,iwp,&
+         &cfc_mid,cfc_high,cot_ice,cflag_tot,cot_liq,cth,ctp,ctp_log,ctt,iwp,&
          &lwp,hist2d_cot_ctp,ref_ice,ref_liq
-    
+
     CALL initialise_variable_flag(land_sea,solzen,time_of_day,&
-         cfc,cfc_day,cfc_low,cfc_mid,cfc_high,cot_ice,&
+         cfc,cfc_day,cfc_low,cfc_mid,cfc_high,cot_ice,cflag_tot,&
          cot_liq,cth,ctp,ctp_log,ctt,iwp,lwp,hist2d_cot_ctp,ref_ice,ref_liq)
-    
+
     OPEN(10,file=file,status='old')
-    READ(10,variables2run)  
+    READ(10,variables2run)
     CLOSE(10)
 
-    x%vars%land_sea       = land_sea 
-    x%vars%solzen         = solzen   
+    x%vars%land_sea       = land_sea
+    x%vars%solzen         = solzen
     x%vars%time_of_day    = time_of_day
-    x%vars%cfc            = cfc      
-    x%vars%cfc_day        = cfc_day  
-    x%vars%cfc_low        = cfc_low  
-    x%vars%cfc_mid        = cfc_mid  
-    x%vars%cfc_high       = cfc_high 
-    x%vars%cot_ice        = cot_ice  
-    x%vars%cot_liq        = cot_liq  
-    x%vars%cth            = cth      
-    x%vars%ctp            = ctp      
-    x%vars%ctp_log        = ctp_log  
+    x%vars%cfc            = cfc
+    x%vars%cfc_day        = cfc_day
+    x%vars%cfc_low        = cfc_low
+    x%vars%cfc_mid        = cfc_mid
+    x%vars%cfc_high       = cfc_high
+    x%vars%cot_ice        = cot_ice
+    x%vars%cflag_tot      = cflag_tot
+    x%vars%cot_liq        = cot_liq
+    x%vars%cth            = cth
+    x%vars%ctp            = ctp
+    x%vars%ctp_log        = ctp_log
     x%vars%ctt            = ctt
-    x%vars%iwp            = iwp      
-    x%vars%lwp            = lwp      
+    x%vars%iwp            = iwp
+    x%vars%lwp            = lwp
     x%vars%hist2d_cot_ctp = hist2d_cot_ctp
-    x%vars%ref_ice        = ref_ice  
-    x%vars%ref_liq        = ref_liq  
-    
+    x%vars%ref_ice        = ref_ice
+    x%vars%ref_liq        = ref_liq
+
   END SUBROUTINE VARIABLES_CLARA
 END MODULE CLARA_M
