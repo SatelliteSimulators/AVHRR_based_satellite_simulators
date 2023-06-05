@@ -66,7 +66,7 @@ CONTAINS
     INTEGER :: year,month,date
     INTEGER :: block1id,block2id,bndsid
     INTEGER :: lnid,ltid,lvlid,tauid,prsid,tauid2,prsid2,&
-         colid,tid,podid,podid2,phaseid,sunid
+         colid,tid,phaseid,cldthickid,sunid,podid,podid2
     INTEGER, PARAMETER :: indef = 40,indes = 400
     INTEGER block1(indef),block2(indes)
     INTEGER, PARAMETER :: bnds = 2
@@ -83,11 +83,11 @@ CONTAINS
     n_tbins = O%ctp_tau%n_tbins
     n_pbins = O%ctp_tau%n_pbins
     nchan   = O%sim%nchannels
-    V       = O%vars 
+    V       = O%vars
     ! restart these or I'll run out
     ncid = 0
 
-    ! Create the file. 
+    ! Create the file.
     CALL check( nf90_create(sim%netcdf_file,nf90_clobber,ncid) )
     ! ========================
     !  GLOBAL ATTRIBUTES
@@ -98,7 +98,7 @@ CONTAINS
     CALL check( nf90_put_att(ncid,nf90_global,"Simulator version" ,O%simVersionNumber))
     CALL check( nf90_put_att(ncid,nf90_global,"Simulated Climate data record" ,O%CDR))
     CALL check( nf90_put_att(ncid,nf90_global,'model',O%model))
-   
+
     ! creation
     CALL DATE_AND_TIME(values=date_time)
     utc(1) = FLOOR((REAL(60*date_time(5)+date_time(6)-date_time(4)))/60)
@@ -152,6 +152,7 @@ CONTAINS
        CALL check( nf90_def_dim(ncid,'lats',ly,ltid) )
     ENDIF
     CALL check( nf90_def_dim(ncid,'ncols',O%ncols,colid) )
+    CALL check( nf90_def_dim(ncid,'cloud_categories',4,cldthickid) )
 
     ! The number of interfaces
     CALL check( nf90_def_dim(ncid,'tau_bins',n_tbins,tauid) )
@@ -159,15 +160,15 @@ CONTAINS
     CALL check( nf90_def_dim(ncid,'tau_bnds',n_tbins+1,tauid2) )
     CALL check( nf90_def_dim(ncid,'pres_bnds',n_pbins+1,prsid2) )
     CALL check( nf90_def_dim(ncid,'phase',2,phaseid) )
-!    IF (O%cloudMicrophys%cf_method.EQ.1) THEN
-!       CALL check( nf90_def_dim(ncid,'pod_bins',&
-!            SIZE(O%sim_aux%POD_tau_bin_centers),podid) )
-!       CALL check( nf90_def_dim(ncid,'pod_bnds',&
-!            SIZE(O%sim_aux%POD_tau_bin_edges),podid2) )
-!    END IF
-!    IF (O%cloudMicrophys%cf_method.GT.0) THEN
-!       CALL check( nf90_def_dim(ncid,'sunlit',2,sunid) )
-!    END IF
+    IF (O%cloudMicrophys%cf_method.EQ.1) THEN
+       CALL check( nf90_def_dim(ncid,'pod_bins',&
+            SIZE(O%sim_aux%POD_tau_bin_centers),podid) )
+       CALL check( nf90_def_dim(ncid,'pod_bnds',&
+            SIZE(O%sim_aux%POD_tau_bin_edges),podid2) )
+    END IF
+    IF (O%cloudMicrophys%cf_method.GT.0) THEN
+       CALL check( nf90_def_dim(ncid,'sunlit',2,sunid) )
+    END IF
     IF  (O%sim%doModel) THEN
        CALL check( nf90_def_dim(ncid,'levels',lz,lvlid) )
     END IF
@@ -179,7 +180,7 @@ CONTAINS
     CALL check( nf90_enddef(ncid) )
 
     ! Note: In addVariable,make sure to list the dimension id's in the
-    !       right order!  
+    !       right order!
 
     ! ===============================
     ! Auxiliary data
@@ -197,7 +198,7 @@ CONTAINS
        ! ... add fixed block2-info plotting purposes and gtx
        block2=0
        block2( 1)=50
-       block2( 6)=10  !  rotated grid 
+       block2( 6)=10  !  rotated grid
        block2( 7)=lx
        block2( 9)=ly
        block2(14)=NINT((A%rlon( 1)) * 1000.)
@@ -229,17 +230,17 @@ CONTAINS
     IF (V%land_sea)        CALL addVariable(ncid,'lsm',O,A,lnid,ltid,M=model)
     IF (V%solzen)          CALL addVariable(ncid,'solzen',O,A,lnid,ltid,S=S)
     IF (V%time_of_day)     CALL addVariable(ncid,'time_of_day',O,A,lnid,ltid,tid,sim=sim)
-    IF (V%hist2d_cot_ctp) THEN 
+    IF (V%hist2d_cot_ctp) THEN
        CALL addVariable(ncid,'hist_phase',           O,A,phaseid)
        CALL addVariable(ncid,'hist2d_ctp_bin_centre',O,A,prsid)
        CALL addVariable(ncid,'hist2d_cot_bin_centre',O,A,tauid)
        CALL addVariable(ncid,'hist2d_ctp_bin_border',O,A,prsid2)
        CALL addVariable(ncid,'hist2d_cot_bin_border',O,A,tauid2)
     END IF
-!    IF (ALLOCATED(O%sim_aux%POD_layers)) THEN 
-!       CALL addVariable(ncid,'POD_tau_bin_centers',O,A,podid ,clara=clara)
-!       CALL addVariable(ncid,'POD_tau_bin_edges',  O,A,podid2,clara=clara)
-!    END IF
+    IF (ALLOCATED(O%sim_aux%POD_layers)) THEN
+       CALL addVariable(ncid,'POD_tau_bin_centers',O,A,podid ,clara=clara)
+       CALL addVariable(ncid,'POD_tau_bin_edges',  O,A,podid2,clara=clara)
+    END IF
     ! END auxiliary
     ! --------------------------------
 
@@ -247,26 +248,27 @@ CONTAINS
     ! SIMULATORS
     ! --------------------
 
-    IF (V%cfc     ) CALL addVariable(ncid,'cfc'     ,O,A,lnid,ltid,tid,clara=clara)
-    IF (V%cfc_day ) CALL addVariable(ncid,'cfc_day' ,O,A,lnid,ltid,tid,clara=clara)
-    IF (V%cfc_low ) CALL addVariable(ncid,'cfc_low' ,O,A,lnid,ltid,tid,clara=clara)
-    IF (V%cfc_mid ) CALL addVariable(ncid,'cfc_mid' ,O,A,lnid,ltid,tid,clara=clara)
-    IF (V%cfc_high) CALL addVariable(ncid,'cfc_high',O,A,lnid,ltid,tid,clara=clara)
-    IF (V%cot_ice ) CALL addVariable(ncid,'cot_ice' ,O,A,lnid,ltid,tid,clara=clara)
-    IF (V%cot_liq ) CALL addVariable(ncid,'cot_liq' ,O,A,lnid,ltid,tid,clara=clara)
-    IF (V%cth     ) CALL addVariable(ncid,'cth'     ,O,A,lnid,ltid,tid,clara=clara)
-    IF (V%ctp     ) CALL addVariable(ncid,'ctp'     ,O,A,lnid,ltid,tid,clara=clara)
-    IF (V%ctp_log ) CALL addVariable(ncid,'ctp_log' ,O,A,lnid,ltid,tid,clara=clara)
-    IF (V%ctt     ) CALL addVariable(ncid,'ctt'     ,O,A,lnid,ltid,tid,clara=clara)
-    IF (V%iwp     ) CALL addVariable(ncid,'iwp'     ,O,A,lnid,ltid,tid,clara=clara)
-    IF (V%lwp     ) CALL addVariable(ncid,'lwp'     ,O,A,lnid,ltid,tid,clara=clara)
-    IF (V%ref_ice ) CALL addVariable(ncid,'ref_ice' ,O,A,lnid,ltid,tid,clara=clara)
-    IF (V%ref_liq ) CALL addVariable(ncid,'ref_liq' ,O,A,lnid,ltid,tid,clara=clara)
+    IF (V%cfc      ) CALL addVariable(ncid,'cfc'      ,O,A,lnid,ltid,tid,clara=clara)
+    IF (V%cfc_day  ) CALL addVariable(ncid,'cfc_day'  ,O,A,lnid,ltid,tid,clara=clara)
+    IF (V%cfc_low  ) CALL addVariable(ncid,'cfc_low'  ,O,A,lnid,ltid,tid,clara=clara)
+    IF (V%cfc_mid  ) CALL addVariable(ncid,'cfc_mid'  ,O,A,lnid,ltid,tid,clara=clara)
+    IF (V%cfc_high ) CALL addVariable(ncid,'cfc_high' ,O,A,lnid,ltid,tid,clara=clara)
+    IF (V%cflag_tot) CALL addVariable(ncid,'cflag_tot',O,A,lnid,ltid,cldthickid,tid,clara=clara)
+    IF (V%cot_ice  ) CALL addVariable(ncid,'cot_ice'  ,O,A,lnid,ltid,tid,clara=clara)
+    IF (V%cot_liq  ) CALL addVariable(ncid,'cot_liq'  ,O,A,lnid,ltid,tid,clara=clara)
+    IF (V%cth      ) CALL addVariable(ncid,'cth'      ,O,A,lnid,ltid,tid,clara=clara)
+    IF (V%ctp      ) CALL addVariable(ncid,'ctp'      ,O,A,lnid,ltid,tid,clara=clara)
+    IF (V%ctp_log  ) CALL addVariable(ncid,'ctp_log'  ,O,A,lnid,ltid,tid,clara=clara)
+    IF (V%ctt      ) CALL addVariable(ncid,'ctt'      ,O,A,lnid,ltid,tid,clara=clara)
+    IF (V%iwp      ) CALL addVariable(ncid,'iwp'      ,O,A,lnid,ltid,tid,clara=clara)
+    IF (V%lwp      ) CALL addVariable(ncid,'lwp'      ,O,A,lnid,ltid,tid,clara=clara)
+    IF (V%ref_ice  ) CALL addVariable(ncid,'ref_ice'  ,O,A,lnid,ltid,tid,clara=clara)
+    IF (V%ref_liq  ) CALL addVariable(ncid,'ref_liq'  ,O,A,lnid,ltid,tid,clara=clara)
 
     IF (V%hist2d_cot_ctp) &
          CALL addVariable(ncid,'hist2d_cot_ctp',O,A,lnid,ltid,tauid,prsid,phaseid,tid,clara=clara)
-!    IF (ALLOCATED(O%sim_aux%POD_layers)) &
-!         CALL addVariable(ncid,'POD_layers',O,A,lnid,ltid,podid,sunid,tid,clara=clara)
+    IF (ALLOCATED(O%sim_aux%POD_layers)) &
+         CALL addVariable(ncid,'POD_layers',O,A,lnid,ltid,podid,sunid,tid,clara=clara)
 
     CALL check (nf90_close(ncid) )
 
@@ -329,7 +331,7 @@ CONTAINS
 
     !----------------------------
     ! NOW THE DATA
-    ! 
+    !
 
     ! Reshape the data if I have to
 
@@ -344,7 +346,7 @@ CONTAINS
     CASE ('block2')
        CALL check(nf90_put_var(ncid,varid,block2))
     CASE ('dtg')
-       CALL check(nf90_put_var(ncid,varid,sim%dtg))   
+       CALL check(nf90_put_var(ncid,varid,sim%dtg))
     CASE ('lon')
        IF (O%model.EQ.'racmo') THEN
           CALL putVar(ncid,varid,A,data2=A%lon)
@@ -375,10 +377,10 @@ CONTAINS
        CALL putVar(ncid,varid,A,O%ctp_tau%tbin_centre)
     CASE ('hist_phase')
        CALL putVar(ncid,varid,A,O%ctp_tau%hist_phase)
-!    CASE ('POD_tau_bin_centers')
-!       CALL putVar(ncid,varid,A,O%sim_aux%POD_tau_bin_centers)
-!    CASE ('POD_tau_bin_edges')
-!       CALL putVar(ncid,varid,A,O%sim_aux%POD_tau_bin_edges)
+    CASE ('POD_tau_bin_centers')
+       CALL putVar(ncid,varid,A,O%sim_aux%POD_tau_bin_centers)
+    CASE ('POD_tau_bin_edges')
+       CALL putVar(ncid,varid,A,O%sim_aux%POD_tau_bin_edges)
     CASE ('rlon')
        CALL putVar(ncid,varid,A,A%rlon)
     CASE ('rlat')
@@ -410,6 +412,8 @@ CONTAINS
        CALL putVar(ncid,varid,A,clara%av%cfc_mid)
     CASE ('cfc_high')
        CALL putVar(ncid,varid,A,clara%av%cfc_high)
+    CASE ('cflag_tot')
+       CALL putVar(ncid,varid,A,data2i=clara%av%cflag_tot)
     CASE ('cot_ice')
        CALL putVar(ncid,varid,A,clara%av%cot_ice)
     CASE ('cot_liq')
@@ -426,8 +430,8 @@ CONTAINS
        CALL putVar(ncid,varid,A,clara%av%iwp)
     CASE ('lwp')
        CALL putVar(ncid,varid,A,clara%av%lwp)
-!    CASE ('POD_layers')
- !      CALL putVar(ncid,varid,A,data3=O%sim_aux%POD_layers)
+    CASE ('POD_layers')
+       CALL putVar(ncid,varid,A,data3=O%sim_aux%POD_layers)
     CASE ('hist2d_cot_ctp')
        CALL putVar(ncid,varid,A,data4=clara%av%hist2d_cot_ctp)
     CASE ('ref_liq')
