@@ -198,8 +198,8 @@ PROGRAM CLARA_SIMULATOR
        POPULATE_EFFECTIVE_RADIUS_LUT(options%CDR,phaseIsLiquid,sat%is_ch3b)
 
   CALL TRIAL_G_AND_W0(options%sim_aux%LUT)
-  ! --------- LUT
 
+  ! --------- LUT
 
   ! ------------
   ! Check if daily netcdf file is already there
@@ -210,7 +210,7 @@ PROGRAM CLARA_SIMULATOR
   ! ------
   ! Restart these at the end of every full day
   CALL INITIALISE_CLARA(clara,options,ng)
-  CALL INITIALISE_SIM_INPUT(sub,options,ng,nl,model%aux%lat,sat)
+  CALL INITIALISE_SIM_INPUT(sub,options,ng,nl)
   CALL INITIALISE_SIMULATOR(sim,ng)
   CALL SET_TIMESTEP(sim,model%aux,options,day,t1,t2)
 
@@ -279,9 +279,6 @@ PROGRAM CLARA_SIMULATOR
   ! Loop over grid points
   DO d1 =1,ng
 
-     ! I cannot move these 3 to outside the grid loop,
-     ! because that uses too much memory
-
      ! empty internal
      CALL INITIALISE_INTERNAL_SIMULATOR(inter,nc,nl,options)
 
@@ -293,32 +290,26 @@ PROGRAM CLARA_SIMULATOR
 
      DO ins = 1,nc
         ! --- loop over sub-columns
-        IF (inter%cflag(ins) .EQ. 0) CYCLE ! i.e., I should also
-        ! simulate very thin clouds
+        IF (inter%cflag(ins) .EQ. 0) CYCLE
+        ! i.e., I should also simulate very thin clouds
 
-        ! the CTTH routines need some rewriting if I want to
-        ! avoid the loop
         CALL CTTH(d1,ins,options%CDR,model,sub,inter)
         IF (sub%sunlit(d1).EQ.1) THEN
            ! consider moving water and ice together to avoid if-statement."
            IF (inter%cph(ins) .EQ. 1) THEN
               inter%reff(ins) = CLOUD_EFFECTIVE_RADIUS(d1,ins,nl,&
                    sub,inter,options%sim_aux%LUT%water%optics)
-           ELSEIF (inter%cph(ins) .EQ. 2) THEN
+           ELSE
               inter%reff(ins) = CLOUD_EFFECTIVE_RADIUS(d1,ins,nl,&
                    sub,inter,options%sim_aux%LUT%ice%optics)
            END IF
         END IF
      END DO
      IF (sub%sunlit(d1).EQ.1) THEN
-        WHERE(inter%cflag(1:nc).GT.1)
            inter%cwp      (1:nc) = 0.667_wp*1.e-3*&
                 inter%reff(1:nc)*&
                 inter%tau       (1:nc)*&
                 rho(inter%cph   (1:nc))
-        ELSEWHERE
-           inter%cwp(1:nc) = 0._wp
-        END WHERE
      END IF
 
      IF (options%dbg>0) THEN
@@ -331,7 +322,14 @@ PROGRAM CLARA_SIMULATOR
           inter%tau,inter%ctp,inter%cph)
 
      CALL GRID_AVERAGE(d1,sub,inter,nc,clara%av)
-  END DO ! end ng
+
+     ! Keep track of optical depth occurances
+     clara%av%cflag_tot(d1,1) = clara%av%cflag_tot(d1,1)+COUNT(inter%cflag .EQ. 0)
+     clara%av%cflag_tot(d1,2) = clara%av%cflag_tot(d1,2)+COUNT(inter%cflag .EQ. 1)
+     clara%av%cflag_tot(d1,3) = clara%av%cflag_tot(d1,3)+COUNT(inter%cflag .EQ. 2)
+     clara%av%cflag_tot(d1,4) = clara%av%cflag_tot(d1,4)+COUNT(inter%cflag .EQ. 3)
+  END DO ! end grid
+
   IF (options%dbg>0) CALL CHECK_GRID_AVERAGES(model,sub,options,clara%av)
 
   IF (need2Average) THEN
