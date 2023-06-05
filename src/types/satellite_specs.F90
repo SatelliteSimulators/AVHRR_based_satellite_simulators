@@ -54,7 +54,7 @@ CONTAINS
 
     CHARACTER (len = 1000) :: filename
     INTEGER :: ncid, varid, dimid, len, nDimensions
-    INTEGER              :: nyrs, nlat, nmon
+    INTEGER              :: nyrs, nmon
     CHARACTER(len= 30)   :: str, field
     LOGICAL              :: exists
     INTEGER              :: year, month
