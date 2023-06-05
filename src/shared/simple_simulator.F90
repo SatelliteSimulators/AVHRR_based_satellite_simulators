@@ -107,12 +107,12 @@ CONTAINS
 
     ! OUT
     !
-    ! 'ctp'     = Cloud top pressure 
+    ! 'ctp'     = Cloud top pressure
     ! 'ctt'     = Cloud top temperature
 
-    REAL(wp),INTENT(out),OPTIONAL :: cth 
-    REAL(wp),INTENT(out),OPTIONAL :: ctp 
-    REAL(wp),INTENT(out),OPTIONAL :: ctt 
+    REAL(wp),INTENT(out),OPTIONAL :: cth
+    REAL(wp),INTENT(out),OPTIONAL :: ctp
+    REAL(wp),INTENT(out),OPTIONAL :: ctt
 
     ! internal
     ! L2 = model level interface above the model layer where the
@@ -155,7 +155,7 @@ CONTAINS
     ! +epsR incase tau_eqCT is set to 0, i.e. catch the slightest of
     ! cloud tops (native model)
 
-    IF (SUM(inter%tau_profile(ins,trop_lev:nlev)) .GE. tau_eqCT+epsR) THEN 
+    IF (SUM(inter%tau_profile(ins,trop_lev:nlev)) .GE. tau_eqCT+epsR) THEN
        ! if the cloud is THICKER than the radiative cloud top height
 
        ! -----------
@@ -163,7 +163,7 @@ CONTAINS
        !
        DO WHILE (tau1 .LT. tau_eqCT+epsR)
           ! this level is the upper bounds of tau
-          inl  = inl+1          
+          inl  = inl+1
           tau1 = SUM(inter%tau_profile(ins,trop_lev:inl) )
        END DO
        L1   = inl
@@ -204,12 +204,12 @@ CONTAINS
        ! find the bottom of the cloud by looping up from
        !  the surface
        inl = nlev
-       DO WHILE(inter%tau_profile(ins,inl) .EQ. 0) 
+       DO WHILE(inter%tau_profile(ins,inl) .EQ. 0)
           inl=inl-1
        END DO
 
        h1=(sub%height(d1,inl)+sub%height(d1,inl+1))/2
-       IF (PRESENT(cth)) cth = h1       
+       IF (PRESENT(cth)) cth = h1
        IF (PRESENT(ctp)) ctp = sub%p_mid(d1,inl)
        IF (PRESENT(ctt)) ctt = T(inl)
 

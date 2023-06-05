@@ -389,7 +389,7 @@ CONTAINS
 
     ClFree=0._wp
     opaque  = 4._wp ! approximate limit for accurate CALIPSO optical depth retrievals
-
+    !opaque  = 0.4_wp ! Limit used in Atrain-match and Karlsson et al., 2023
     !---------
     ! CLOUD TYPE
     !

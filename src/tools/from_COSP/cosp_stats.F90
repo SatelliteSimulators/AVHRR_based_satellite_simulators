@@ -2,26 +2,26 @@
 ! Copyright (c) 2015, Regents of the University of Colorado
 ! All rights reserved.
 !
-! Redistribution and use in source and binary forms, with or without modification, are 
+! Redistribution and use in source and binary forms, with or without modification, are
 ! permitted provided that the following conditions are met:
 !
-! 1. Redistributions of source code must retain the above copyright notice, this list of 
+! 1. Redistributions of source code must retain the above copyright notice, this list of
 !    conditions and the following disclaimer.
 !
 ! 2. Redistributions in binary form must reproduce the above copyright notice, this list
-!    of conditions and the following disclaimer in the documentation and/or other 
+!    of conditions and the following disclaimer in the documentation and/or other
 !    materials provided with the distribution.
 !
-! 3. Neither the name of the copyright holder nor the names of its contributors may be 
+! 3. Neither the name of the copyright holder nor the names of its contributors may be
 !    used to endorse or promote products derived from this software without specific prior
 !    written permission.
 !
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY 
-! EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
-! MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL 
-! THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT 
-! OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+! EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+! MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+! THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+! OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
 ! INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 ! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
@@ -29,13 +29,13 @@
 ! History:
 ! Jul 2007 - A. Bodas-Salcedo - Initial version
 ! Jul 2008 - A. Bodas-Salcedo - Added capability of producing outputs in standard grid
-! Oct 2008 - J.-L. Dufresne   - Bug fixed. Assignment of Npoints,Nlevels,Nhydro,Ncolumns 
+! Oct 2008 - J.-L. Dufresne   - Bug fixed. Assignment of Npoints,Nlevels,Nhydro,Ncolumns
 !                               in COSP_STATS
 ! Oct 2008 - H. Chepfer       - Added PARASOL reflectance arguments
 ! Jun 2010 - T. Yokohata, T. Nishimura and K. Ogochi - Added NEC SXs optimisations
-! Jan 2013 - G. Cesana        - Added betaperp and temperature arguments 
-!                             - Added phase 3D/3Dtemperature/Map output variables in diag_lidar 
-! May 2015 - D. Swales        - Modified for cosp2.0 
+! Jan 2013 - G. Cesana        - Added betaperp and temperature arguments
+!                             - Added phase 3D/3Dtemperature/Map output variables in diag_lidar
+! May 2015 - D. Swales        - Modified for cosp2.0
 ! Nov 2018 - T. Michibata     - Added CloudSat+MODIS Warmrain Diagnostics
 ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 MODULE MOD_COSP_STATS
@@ -203,14 +203,14 @@ END SUBROUTINE COSP_CHANGE_VERTICAL_GRID
          tcc,       & !
          radar_tcc, & !
          radar_tcc2   !
-    
+
     ! local variables
     real(wp) :: sc_ratio
     real(wp),parameter :: &
          s_cld=5.0, &
          s_att=0.01
     integer :: flag_sat,flag_cld,pr,i,j,flag_radarcld,flag_radarcld_no1km,j_1km
-    
+
     lidar_only_freq_cloud = 0._wp
     tcc = 0._wp
     radar_tcc = 0._wp
@@ -226,8 +226,8 @@ END SUBROUTINE COSP_CHANGE_VERTICAL_GRID
           do while (Ze_tot(pr,i,j) .eq. R_GROUND)
              j = j+1
           enddo
-          j_1km = j+1  !this is the vertical index of 1km above surface  
-          
+          j_1km = j+1  !this is the vertical index of 1km above surface
+
           do j=1,Nlevels
              sc_ratio = beta_tot(pr,i,j)/beta_mol(pr,j)
              if ((sc_ratio .le. s_att) .and. (flag_sat .eq. 0)) flag_sat = j
@@ -239,28 +239,28 @@ END SUBROUTINE COSP_CHANGE_VERTICAL_GRID
              else  !radar sense cloud (z%Ze_tot(pr,i,j) .ge. -30.)
                 flag_cld=1
                 flag_radarcld=1
-                if (j .gt. j_1km) flag_radarcld_no1km=1              
+                if (j .gt. j_1km) flag_radarcld_no1km=1
              endif
           enddo !levels
           if (flag_cld .eq. 1) tcc(pr)=tcc(pr)+1._wp
           if (flag_radarcld .eq. 1) radar_tcc(pr)=radar_tcc(pr)+1.
-          if (flag_radarcld_no1km .eq. 1) radar_tcc2(pr)=radar_tcc2(pr)+1.        
+          if (flag_radarcld_no1km .eq. 1) radar_tcc2(pr)=radar_tcc2(pr)+1.
        enddo !columns
     enddo !points
     lidar_only_freq_cloud=lidar_only_freq_cloud/Ncolumns
     tcc=tcc/Ncolumns
     radar_tcc=radar_tcc/Ncolumns
     radar_tcc2=radar_tcc2/Ncolumns
-    
+
     ! Unit conversion
     where(lidar_only_freq_cloud /= R_UNDEF) &
             lidar_only_freq_cloud = lidar_only_freq_cloud*100._wp
     where(tcc /= R_UNDEF) tcc = tcc*100._wp
     where(radar_tcc /= R_UNDEF) radar_tcc = radar_tcc*100._wp
     where(radar_tcc2 /= R_UNDEF) radar_tcc2 = radar_tcc2*100._wp
-    
+
   END SUBROUTINE COSP_LIDAR_ONLY_CLOUD
-  
+
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   !-----------------------  SUBROUTINE COSP_DIAG_WARMRAIN ------------------------
   ! (c) 2018, Research Institute for Applied Mechanics (RIAM), Kyushu Univ.
@@ -281,9 +281,9 @@ END SUBROUTINE COSP_CHANGE_VERTICAL_GRID
   !               E-mail: michibata@riam.kyushu-u.ac.jp
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   SUBROUTINE COSP_DIAG_WARMRAIN( Npoints, Ncolumns, Nlevels,           & !! in
-                                 temp,    zlev,     delz,              & !! in
-                                 lwp,     liqcot,   liqreff, liqcfrc,  & !! in
-                                 iwp,     icecot,   icereff, icecfrc,  & !! in
+                                 temp,    zlev,                        & !! in
+                                 lwp,     liqcot,   liqreff,           & !! in
+                                 iwp,     icecot,   icereff,           & !! in
                                  fracout, dbze,                        & !! in
                                  cfodd_ntotal,                         & !! inout
                                  wr_occfreq_ntotal                     ) !! inout
@@ -296,16 +296,13 @@ END SUBROUTINE COSP_CHANGE_VERTICAL_GRID
     real(wp), dimension(Npoints), intent(in) :: &
          lwp,              & ! MODIS LWP [kg m-2]
          liqcot,           & ! MODIS liq. COT
-         liqreff,          & ! MODIS liq. Reff [m]
-         liqcfrc             ! MODIS liq. cloud fraction
+         liqreff             ! MODIS liq. Reff [m]
     real(wp), dimension(Npoints), intent(in) :: &
          iwp,              & ! MODIS IWP [kg m-2]
          icecot,           & ! MODIS ice COT
-         icereff,          & ! MODIS ice Reff [m]
-         icecfrc             ! MODIS ice cloud fraction
+         icereff             ! MODIS ice Reff [m]
     real(wp), dimension(Npoints,Nlevels), intent(in) :: &
-         zlev,             & ! altitude [m] for model level
-         delz                ! delta Z [m] (= zlevm(k+1)-zlemv(k))
+         zlev                ! altitude [m] for model level
     real(wp), dimension(Npoints,1,Nlevels),intent(in) :: &
          temp                ! temperature [K]
     real(wp), dimension(Npoints,Ncolumns,Nlevels),intent(in) :: &
@@ -320,13 +317,11 @@ END SUBROUTINE COSP_CHANGE_VERTICAL_GRID
 
     ! Local variables
     integer  :: i, j, k
-    integer  :: ix, iy
     integer  :: kctop, kcbtm
     integer  :: icls
     integer  :: iregime
     real     :: cmxdbz
     real(wp) :: diagcgt   !! diagnosed cloud geometric thickness [m]
-    real(wp) :: diagdbze  !! diagnosed dBZe
     real(wp) :: diagicod  !! diagnosed in-cloud optical depth
     real(wp) :: cbtmh     !! diagnosed in-cloud optical depth
     real(wp), dimension(Npoints,Ncolumns,Nlevels) :: icod  !! in-cloud optical depth (ICOD)
@@ -449,30 +444,30 @@ END SUBROUTINE COSP_CHANGE_VERTICAL_GRID
     real(wp),intent(in),dimension(Npoints) :: &
          var        ! Input variable to be sorted
     real(wp),intent(in),dimension(Nbins+1) :: &
-         bins       ! Histogram bins [lowest,binTops]  
+         bins       ! Histogram bins [lowest,binTops]
     ! Outputs
     real(wp),dimension(Nbins) :: &
-         hist1d     ! Output histogram      
+         hist1d     ! Output histogram
     ! Local variables
     integer :: ij
-    
-    do ij=2,Nbins+1  
+
+    do ij=2,Nbins+1
        hist1D(ij-1) = count(var .ge. bins(ij-1) .and. var .lt. bins(ij))
        if (count(var .eq. R_GROUND) .ge. 1) hist1D(ij-1)=R_UNDEF
     enddo
-    
+
   end function hist1D
-  
+
   ! ######################################################################################
   ! SUBROUTINE hist2D
   ! ######################################################################################
   subroutine hist2D(var1,var2,npts,bin1,nbin1,bin2,nbin2,jointHist)
     implicit none
-    
+
     ! INPUTS
     integer, intent(in) :: &
          npts,  & ! Number of data points to be sorted
-         nbin1, & ! Number of bins in histogram direction 1 
+         nbin1, & ! Number of bins in histogram direction 1
          nbin2    ! Number of bins in histogram direction 2
     real(wp),intent(in),dimension(npts) :: &
          var1,  & ! Variable 1 to be sorted into bins
@@ -484,14 +479,14 @@ END SUBROUTINE COSP_CHANGE_VERTICAL_GRID
     ! OUTPUTS
     real(wp),intent(out),dimension(nbin1,nbin2) :: &
          jointHist
-    
+
     ! LOCAL VARIABLES
     integer :: ij,ik
-    
+
     do ij=2,nbin1+1
        do ik=2,nbin2+1
           jointHist(ij-1,ik-1)=count(var1 .ge. bin1(ij-1) .and. var1 .lt. bin1(ij) .and. &
-               var2 .ge. bin2(ik-1) .and. var2 .lt. bin2(ik))        
+               var2 .ge. bin2(ik-1) .and. var2 .lt. bin2(ik))
        enddo
     enddo
   end subroutine hist2D

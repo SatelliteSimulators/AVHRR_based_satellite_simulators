@@ -3,37 +3,37 @@ MODULE from_COSP2
   ! Copyright (c) 2015, Regents of the University of Colorado
   ! All rights reserved.
   !
-  ! Redistribution and use in source and binary forms, with or without modification, are 
+  ! Redistribution and use in source and binary forms, with or without modification, are
   ! permitted provided that the following conditions are met:
   !
-  ! 1. Redistributions of source code must retain the above copyright notice, this list of 
+  ! 1. Redistributions of source code must retain the above copyright notice, this list of
   !    conditions and the following disclaimer.
   !
   ! 2. Redistributions in binary form must reproduce the above copyright notice, this list
-  !    of conditions and the following disclaimer in the documentation and/or other 
+  !    of conditions and the following disclaimer in the documentation and/or other
   !    materials provided with the distribution.
   !
-  ! 3. Neither the name of the copyright holder nor the names of its contributors may be 
+  ! 3. Neither the name of the copyright holder nor the names of its contributors may be
   !    used to endorse or promote products derived from this software without specific prior
   !    written permission.
   !
-  ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY 
-  ! EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
-  ! MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL 
-  ! THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-  ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT 
-  ! OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+  ! EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+  ! MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+  ! THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  ! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+  ! OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
   ! INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
   ! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   !
   ! History
   ! May 2009:      Robert Pincus - Initial version
-  ! June 2009:     Steve Platnick and Robert Pincus - Simple radiative transfer for size 
+  ! June 2009:     Steve Platnick and Robert Pincus - Simple radiative transfer for size
   !                retrievals
-  ! August 2009:   Robert Pincus - Consistency and bug fixes suggested by Rick Hemler (GFDL) 
-  ! November 2009: Robert Pincus - Bux fixes and speed-ups after experience with Rick Hemler 
-  !                using AM2 (GFDL) 
+  ! August 2009:   Robert Pincus - Consistency and bug fixes suggested by Rick Hemler (GFDL)
+  ! November 2009: Robert Pincus - Bux fixes and speed-ups after experience with Rick Hemler
+  !                using AM2 (GFDL)
   ! January 2010:  Robert Pincus - Added high, middle, low cloud fractions
   ! May 2015:      Dustin Swales - Modified for COSPv2.0
   ! Feb 2016:      Salomon.Eliasson@smhi.se - borrowed from https://github.com/CFMIP/COSPv2.0
@@ -49,7 +49,7 @@ MODULE from_COSP2
        num_trial_res,        &
        small_liq,            &
        small_ice
-       
+
   IMPLICIT NONE
 
   PUBLIC :: adding_doubling,    &
@@ -57,7 +57,7 @@ MODULE from_COSP2
        get_g_nir,               &
        get_ssa_nir,             &
        interpolate_to_min,      &
-       trial_g_and_w0,          & 
+       trial_g_and_w0,          &
        two_stream,              &
        two_stream_reflectance
 
@@ -86,7 +86,7 @@ CONTAINS
     trial_re_i = LUT%ice%optics%re%trial
 
     ! Water
-    !EvMb ... next four modifications needed to overcome a bug in the gfortran compiler installed at KNMI 
+    !EvMb ... next four modifications needed to overcome a bug in the gfortran compiler installed at KNMI
     !   r_eff%water%optics%g0(1:num_trial_res) = get_g_nir(trial_re_w(1:num_trial_res),&
     !        r_eff%water,is_ch3B)
     do i=1,num_trial_res
@@ -122,7 +122,7 @@ CONTAINS
   ELEMENTAL FUNCTION get_g_nir(re,cloud,phase)
 
     !
-    ! Polynomial fit for asummetry parameter, g, in CLARA channel 3B as a function 
+    ! Polynomial fit for asummetry parameter, g, in CLARA channel 3B as a function
     ! of size for ice and water. Fits based on FIXME- KNMI CLARA, RAL Cloud_cci
     !
 
@@ -130,7 +130,7 @@ CONTAINS
     REAL(wp),INTENT(in)           :: re
     TYPE(cloud_phase), INTENT(in) :: cloud
     INTEGER, INTENT(in)           :: phase
-    
+
     ! OUT
     REAL(wp) :: get_g_nir
 
@@ -139,19 +139,19 @@ CONTAINS
     TYPE(effective_radius) :: reff
     INTEGER                :: small
     REAL(wp)               :: effective_radius
-    
+
     reff=cloud%optics%re
     fit=reff%fit
-    
+
     ! Keep effective radius within limits of the table
     effective_radius = MINVAL( (/MAXVAL( (/reff%min,re/)),reff%max/) )
-   
+
     IF (phase == phaseIsLiquid) THEN
        small=small_liq
     ELSE
        small=small_ice
     END IF
-       
+
     IF(effective_radius < small) THEN
        IF     (SIZE(fit%g0_small) .EQ. 3) THEN
           get_g_nir = fit_to_2D(effective_radius, fit%g0_small)
@@ -178,11 +178,11 @@ CONTAINS
   ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
   ELEMENTAL FUNCTION get_ssa_nir (re,cloud,phase)
-    
+
     TYPE(cloud_phase), INTENT(in) :: cloud
     REAL(wp),INTENT(in)              :: re
     INTEGER, INTENT(in)              :: phase
-    
+
     ! OUT
     REAL(wp) :: get_ssa_nir
 
@@ -191,19 +191,19 @@ CONTAINS
     TYPE(effective_radius) :: reff
     INTEGER                :: small
     REAL(wp)               :: effective_radius
-    
+
     reff=cloud%optics%re
     fit=reff%fit
-    
+
     ! Keep effective radius within limits of the table
     effective_radius = MINVAL( (/MAXVAL( (/reff%min,re/)),reff%max/) )
-    
+
     IF (phase == phaseIsLiquid) THEN
        small=small_liq
     ELSE
        small=small_ice
     END IF
-      
+
     IF (effective_radius < small) THEN
        IF     (SIZE(fit%w0_small) .EQ. 3) THEN
           get_ssa_nir = fit_to_2D(effective_radius, fit%w0_small)
@@ -221,47 +221,47 @@ CONTAINS
           get_ssa_nir = fit_to_4D(effective_radius, fit%w0_large)
        END IF
     END IF
-    
+
   END FUNCTION get_ssa_nir
 
     ! ########################################################################################
-  PURE FUNCTION fit_to_4D(x, coeffs) 
+  PURE FUNCTION fit_to_4D(x, coeffs)
     ! INPUTS
     REAL(wp),               INTENT(in) :: x
     REAL(wp), DIMENSION(5), INTENT(in) :: coeffs
     ! OUTPUTS
-    REAL(wp)                           :: fit_to_4D  
-    
+    REAL(wp)                           :: fit_to_4D
+
     fit_to_4D = coeffs(1) + x*(coeffs(2) + x*(coeffs(3) + x*(coeffs(4) + x*coeffs(5))))
   END FUNCTION fit_to_4D
-  
+
   ! ########################################################################################
-  PURE FUNCTION fit_to_3D(x, coeffs) 
+  PURE FUNCTION fit_to_3D(x, coeffs)
     ! INPUTS
     REAL(wp),               INTENT(in) :: x
     REAL(wp), DIMENSION(4), INTENT(in) :: coeffs
     ! OUTPUTS
-    REAL(wp)                           :: fit_to_3D  
-    
+    REAL(wp)                           :: fit_to_3D
+
     fit_to_3D = coeffs(1) + x*(coeffs(2) + x*(coeffs(3) + x*coeffs(4)))
   END FUNCTION fit_to_3D
-    
+
   ! ########################################################################################
-  PURE FUNCTION fit_to_2D(x, coeffs) 
+  PURE FUNCTION fit_to_2D(x, coeffs)
     ! INPUTS
     REAL(wp),               INTENT(in) :: x
     REAL(wp), DIMENSION(3), INTENT(in) :: coeffs
     ! OUTPUTS
     REAL(wp)                           :: fit_to_2D
-    
+
     fit_to_2D = coeffs(1) + x*(coeffs(2) + x*(coeffs(3)))
   END FUNCTION fit_to_2D
-  
+
   ! ########################################################################################
   ! Radiative transfer
   ! ########################################################################################
   PURE FUNCTION compute_toa_reflectance(nLevels,tau, g, w0)
-    ! This wrapper reports reflectance only and strips out non-cloudy elements from the 
+    ! This wrapper reports reflectance only and strips out non-cloudy elements from the
     ! calculation
 
 
@@ -277,22 +277,22 @@ CONTAINS
     REAL(wp)                                      :: Refl_tot, Trans_tot
     INTEGER                                       :: i
 
-    cloudMask(1:nLevels) = tau(1:nLevels) > 0. 
-    cloudIndicies = PACK((/ (i, i = 1, nLevels) /), mask = cloudMask) 
+    cloudMask(1:nLevels) = tau(1:nLevels) > 0.
+    cloudIndicies = PACK((/ (i, i = 1, nLevels) /), mask = cloudMask)
     DO i = 1, SIZE(cloudIndicies)
        CALL two_stream(tau(cloudIndicies(i)), g(cloudIndicies(i)), w0(cloudIndicies(i)), Refl(i), Trans(i))
     END DO
 
-    CALL adding_doubling(COUNT(tau(1:nLevels) > 0),Refl(:), Trans(:), Refl_tot, Trans_tot)  
+    CALL adding_doubling(COUNT(tau(1:nLevels) > 0),Refl(:), Trans(:), Refl_tot, Trans_tot)
 
     compute_toa_reflectance = Refl_tot
 
   END FUNCTION compute_toa_reflectance
 
   ! ########################################################################################
-  PURE SUBROUTINE two_stream(tauint, gint, w0int, ref, tra) 
-    ! Compute reflectance in a single layer using the two stream approximation 
-    !   The code itself is from Lazaros Oreopoulos via Steve Platnick 
+  PURE SUBROUTINE two_stream(tauint, gint, w0int, ref, tra)
+    ! Compute reflectance in a single layer using the two stream approximation
+    !   The code itself is from Lazaros Oreopoulos via Steve Platnick
     ! INPUTS
     REAL(wp), INTENT(in)  :: tauint, gint, w0int
     ! OUTPUTS
@@ -305,8 +305,8 @@ CONTAINS
     REAL(wp) :: tau, w0, g, f, gamma1, gamma2, gamma3, gamma4, &
          rh, a1, a2, rk, r1, r2, r3, r4, r5, t1, t2, t3, t4, t5, beta, e1, e2, ef1, ef2, den, th
 
-    ! Compute reflectance and transmittance in a single layer using the two stream approximation 
-    !   The code itself is from Lazaros Oreopoulos via Steve Platnick 
+    ! Compute reflectance and transmittance in a single layer using the two stream approximation
+    !   The code itself is from Lazaros Oreopoulos via Steve Platnick
     f   = gint**2
     tau = (1._wp - w0int * f) * tauint
     w0  = (1._wp - f) * w0int / (1._wp - w0int * f)
@@ -323,7 +323,7 @@ CONTAINS
        IF (beam == 1) THEN
           rh = (gamma1*tau+(gamma3-gamma1*xmu)*(1-EXP(-tau/xmu)))
           ref = rh / (1._wp + gamma1 * tau)
-          tra = 1._wp - ref       
+          tra = 1._wp - ref
        ELSE IF(beam == 2) THEN
           ref = gamma1*tau/(1._wp + gamma1*tau)
           tra = 1._wp - ref
@@ -347,10 +347,10 @@ CONTAINS
        t4 = r4
        t5 = r5
 
-       beta = -r5 / r4         
+       beta = -r5 / r4
 
-       e1 = MIN(rk * tau, 500._wp) 
-       e2 = MIN(tau / xmu, 500._wp) 
+       e1 = MIN(rk * tau, 500._wp)
+       e2 = MIN(tau / xmu, 500._wp)
 
        IF (beam == 1) THEN
           den = r4 * EXP(e1) + r5 * EXP(-e1)
@@ -368,8 +368,8 @@ CONTAINS
   END SUBROUTINE two_stream
 
   ! ########################################################################################
-  PURE SUBROUTINE adding_doubling (npts,Refl, Tran, Refl_tot, Tran_tot)      
-    ! Use adding/doubling formulas to compute total reflectance and transmittance from 
+  PURE SUBROUTINE adding_doubling (npts,Refl, Tran, Refl_tot, Tran_tot)
+    ! Use adding/doubling formulas to compute total reflectance and transmittance from
     ! layer values
 
     ! INPUTS
@@ -382,7 +382,7 @@ CONTAINS
     REAL(wp), DIMENSION(npts) :: Refl_cumulative, Tran_cumulative
 
     Refl_cumulative(1) = Refl(1)
-    Tran_cumulative(1) = Tran(1)    
+    Tran_cumulative(1) = Tran(1)
 
     DO i=2, npts
        ! place (add) previous combined layer(s) reflectance on top of layer i, w/black surface (or ignoring surface):
@@ -397,8 +397,8 @@ CONTAINS
 
   ! ########################################################################################
   ELEMENTAL FUNCTION two_stream_reflectance(tauint, gint, w0int)
-    ! Compute reflectance in a single layer using the two stream approximation 
-    !   The code itself is from Lazaros Oreopoulos via Steve Platnick 
+    ! Compute reflectance in a single layer using the two stream approximation
+    !   The code itself is from Lazaros Oreopoulos via Steve Platnick
 
     ! INPUTS
     REAL(wp), INTENT(in) :: tauint, gint, w0int
@@ -452,10 +452,10 @@ CONTAINS
        t4 = r4
        t5 = r5
 
-       beta = -r5 / r4         
+       beta = -r5 / r4
 
-       e1 = MIN(rk * tau, 500._wp) 
-       e2 = MIN(tau / xmu, 500._wp) 
+       e1 = MIN(rk * tau, 500._wp)
+       e2 = MIN(tau / xmu, 500._wp)
 
        IF (beam == 1) THEN
           den = r4 * EXP(e1) + r5 * EXP(-e1)
@@ -472,7 +472,7 @@ CONTAINS
   ! ########################################################################################
   PURE FUNCTION interpolate_to_min(x, y, yobs)
     ! INPUTS
-    REAL(wp),INTENT(in),DIMENSION(num_trial_res) :: x, y 
+    REAL(wp),INTENT(in),DIMENSION(num_trial_res) :: x, y
     REAL(wp),INTENT(in)                          :: yobs
     ! OUTPUTS
     REAL(wp)                                     :: interpolate_to_min
@@ -485,9 +485,9 @@ CONTAINS
 
     nPoints = SIZE(y)
     diff(1:num_trial_res) = y(1:num_trial_res) - yobs
-    minDiffLoc = MINLOC(ABS(diff), dim = 1) 
+    minDiffLoc = MINLOC(ABS(diff), dim = 1)
 
-    IF(minDiffLoc == 1) THEN 
+    IF(minDiffLoc == 1) THEN
        lowerBound = minDiffLoc
        upperBound = minDiffLoc + 1
     ELSE IF(minDiffLoc == nPoints) THEN
@@ -497,17 +497,17 @@ CONTAINS
        IF(diff(minDiffLoc-1) * diff(minDiffLoc) < 0) THEN
           lowerBound = minDiffLoc-1
           upperBound = minDiffLoc
-       ELSE 
+       ELSE
           lowerBound = minDiffLoc
           upperBound = minDiffLoc + 1
        END IF
     END IF
 
-    IF(diff(lowerBound) * diff(upperBound) < 0) THEN     
+    IF(diff(lowerBound) * diff(upperBound) < 0) THEN
        !
        ! Interpolate the root position linearly if we bracket the root
        !
-       interpolate_to_min = x(upperBound) - & 
+       interpolate_to_min = x(upperBound) - &
             diff(upperBound) * (x(upperBound) - x(lowerBound)) / (diff(upperBound) - diff(lowerBound))
     ELSE
        interpolate_to_min = re_fill
@@ -515,89 +515,4 @@ CONTAINS
 
   END FUNCTION interpolate_to_min
 
-!  ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-!  ! FUNCTION weight_by_extinction
-!  ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-!  FUNCTION weight_by_extinction(nLevels,tauIncrement, f, tauLimit) 
-!    ! INPUTS
-!    integer, intent(in)                    :: nLevels
-!    real(wp),intent(in),dimension(nLevels) :: tauIncrement, f
-!    real(wp),intent(in)                    :: tauLimit
-!    ! OUTPUTS
-!    real(wp)                               :: weight_by_extinction
-!    ! LOCAL VARIABLES
-!    real(wp)                               :: deltaX, totalTau, totalProduct
-!    integer                                :: i 
-!
-!    ! Find the extinction-weighted value of f(tau), assuming constant f within each layer
-!    totalTau = 0._wp; totalProduct = 0._wp
-!    do i = 1, size(tauIncrement)
-!       if(totalTau + tauIncrement(i) > tauLimit) then 
-!          deltaX       = tauLimit - totalTau
-!          totalTau     = totalTau     + deltaX
-!          totalProduct = totalProduct + deltaX * f(i) 
-!       else
-!          totalTau     = totalTau     + tauIncrement(i) 
-!          totalProduct = totalProduct + tauIncrement(i) * f(i) 
-!       end if
-!       if(totalTau >= tauLimit) exit
-!    end do
-!    weight_by_extinction = totalProduct/totalTau
-!  END FUNCTION weight_by_extinction
-
 END MODULE from_COSP2
-
-
-
-!!!!!!!!!!!!!!!!!!
-! OLD CODES
-!
-
-
-!ELEMENTAL FUNCTION get_ssa_nir(re_trial,phase,is_ch3B)
-!
-!    ! INPUTS
-!    TYPE(cloud_phase), INTENT(in) :: phase
-!    LOGICAL, INTENT(in) :: is_ch3b
-!
-!    ! Outputs
-!    real(wp) :: get_ssa_nir
-!
-!    ! Local variables
-!    REAL(wp),INTENT(in) :: re_trial
-!    INTEGER  :: xi(2)
-!    INTEGER  :: nRe
-!    REAL(wp), ALLOCATABLE :: w0(:), re(:)
-!    REAL(wp) :: re_max,re_min
-!
-!    ! list of trial effective radius's
-!    re_max    = phase%optics%re%max
-!    re_min    = phase%optics%re%min
-!    nRe       = phase%optics%re%nRe
-!    ALLOCATE(re(nRe))
-!    ALLOCATE(w0(nRe))
-!    re        = phase%optics%re%re
-!    IF (is_ch3B) THEN
-!       w0(1:nRe) = phase%optics%re%w0_37(1:nRe)
-!    ELSE
-!       w0(1:nRe) = phase%optics%re%w0_16(1:nRe)
-!    END IF
-!
-!    ! Find interpolation bounds works for either cloud phase or wavelength
-!    xi = [MAXLOC(re-re_trial,re-re_trial .LE. 0),MAXLOC(re-re_trial,re-re_trial .LE. 0)+1]
-!    IF (MINVAL(ABS(re-re_trial)) .EQ. 0) xi=[xi(1),xi(1)]
-!    ! Interpolate
-!    IF (re_trial .GT. re_min .AND. re_trial .LT. re_max) THEN
-!       get_ssa_nir = w0(xi(1))+(w0(xi(2))-w0(xi(1)))*(re_trial-re(xi(1)))/    &
-!            (re(xi(2))-re(xi(1))) 
-!    ENDIF
-!    IF (xi(1) .EQ. xi(2)) get_ssa_nir = w0(xi(1))      ! On table node
-!    IF (re_trial .LT. re_min)  get_ssa_nir = w0(1)   ! Re too small
-!    IF (re_trial .GT. re_max)  get_ssa_nir = w0(nRe) ! Re too big
-!
-!    DEALLOCATE(re)
-!    DEALLOCATE(w0)
-!
-!  END FUNCTION get_ssa_nir
-
-
