@@ -250,9 +250,6 @@ CONTAINS
     X%subsampler          = subsampler
     X%overwrite_existing  = overwrite_existing
 
-    print*,trim(sim_output)
-    print*,trim(X%paths%sim_output)
-
     IF (use_satellite) THEN
        CALL namelist_satellite(x,file)
     ELSE
