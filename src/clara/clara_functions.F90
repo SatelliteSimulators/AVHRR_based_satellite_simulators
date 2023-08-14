@@ -166,9 +166,7 @@ END SUBROUTINE CLARA_CTTH_ST_SIMPLE
 SUBROUTINE CLARA_A3_OPAQUE(d1,ins,model,S,inter)
 
    ! Simple approach using only the documented biases for
-   ! opaque clouds for CLARA-A3. Scientific and Validation Report for the
-   ! Cloud Product Processors of the NWC/PPS
-   ! (NWC-CDOP3-PPS-SMHI-SCI-VR-Cloud-v2.0 13 December 2018)
+   ! opaque clouds for CLARA-A3.
 
 
    IMPLICIT NONE
