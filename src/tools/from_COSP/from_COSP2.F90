@@ -64,7 +64,7 @@ MODULE from_COSP2
   INTEGER, PARAMETER ::    phaseIsLiquid = 1,      & !
        phaseIsIce    = 2         !
 
-  REAL(wp), PARAMETER :: re_fill = -999.0
+  REAL(wp), PARAMETER :: re_fill = -9.0
 
 CONTAINS
 
@@ -138,13 +138,13 @@ CONTAINS
     TYPE(polyfit)          :: fit ! Coefficients for best polynomial fits for g0 and w0
     TYPE(effective_radius) :: reff
     INTEGER                :: small
-    REAL(wp)               :: effective_radius
+    REAL(wp)               :: cloud_effective_radius
 
     reff=cloud%optics%re
     fit=reff%fit
 
     ! Keep effective radius within limits of the table
-    effective_radius = MINVAL( (/MAXVAL( (/reff%min,re/)),reff%max/) )
+    cloud_effective_radius = MINVAL( (/MAXVAL( (/reff%min,re/)),reff%max/) )
 
     IF (phase == phaseIsLiquid) THEN
        small=small_liq
@@ -152,21 +152,21 @@ CONTAINS
        small=small_ice
     END IF
 
-    IF(effective_radius < small) THEN
+    IF(cloud_effective_radius < small) THEN
        IF     (SIZE(fit%g0_small) .EQ. 3) THEN
-          get_g_nir = fit_to_2D(effective_radius, fit%g0_small)
+          get_g_nir = fit_to_2D(cloud_effective_radius, fit%g0_small)
        ELSEIF (SIZE(fit%g0_small) .EQ. 4) THEN
-          get_g_nir = fit_to_3D(effective_radius, fit%g0_small)
+          get_g_nir = fit_to_3D(cloud_effective_radius, fit%g0_small)
        ELSEIF (SIZE(fit%g0_small) .EQ. 5) THEN
-          get_g_nir = fit_to_4D(effective_radius, fit%g0_small)
+          get_g_nir = fit_to_4D(cloud_effective_radius, fit%g0_small)
        END IF
     ELSE
        IF     (SIZE(fit%g0_large) .EQ. 3) THEN
-          get_g_nir = fit_to_2D(effective_radius, fit%g0_large)
+          get_g_nir = fit_to_2D(cloud_effective_radius, fit%g0_large)
        ELSEIF (SIZE(fit%g0_large) .EQ. 4) THEN
-          get_g_nir = fit_to_3D(effective_radius, fit%g0_large)
+          get_g_nir = fit_to_3D(cloud_effective_radius, fit%g0_large)
        ELSEIF (SIZE(fit%g0_large) .EQ. 5) THEN
-          get_g_nir = fit_to_4D(effective_radius, fit%g0_large)
+          get_g_nir = fit_to_4D(cloud_effective_radius, fit%g0_large)
        END IF
     END IF
 
@@ -190,13 +190,13 @@ CONTAINS
     TYPE(polyfit)          :: fit ! Coefficients for best polynomial fits for g0 and w0
     TYPE(effective_radius) :: reff
     INTEGER                :: small
-    REAL(wp)               :: effective_radius
+    REAL(wp)               :: cloud_effective_radius
 
     reff=cloud%optics%re
     fit=reff%fit
 
     ! Keep effective radius within limits of the table
-    effective_radius = MINVAL( (/MAXVAL( (/reff%min,re/)),reff%max/) )
+    cloud_effective_radius = MINVAL( (/MAXVAL( (/reff%min,re/)),reff%max/) )
 
     IF (phase == phaseIsLiquid) THEN
        small=small_liq
@@ -204,21 +204,21 @@ CONTAINS
        small=small_ice
     END IF
 
-    IF (effective_radius < small) THEN
+    IF (cloud_effective_radius < small) THEN
        IF     (SIZE(fit%w0_small) .EQ. 3) THEN
-          get_ssa_nir = fit_to_2D(effective_radius, fit%w0_small)
+          get_ssa_nir = fit_to_2D(cloud_effective_radius, fit%w0_small)
        ELSEIF (SIZE(fit%w0_small) .EQ. 4) THEN
-          get_ssa_nir = fit_to_3D(effective_radius, fit%w0_small)
+          get_ssa_nir = fit_to_3D(cloud_effective_radius, fit%w0_small)
        ELSEIF (SIZE(fit%w0_small) .EQ. 5) THEN
-          get_ssa_nir = fit_to_4D(effective_radius, fit%w0_small)
+          get_ssa_nir = fit_to_4D(cloud_effective_radius, fit%w0_small)
        END IF
     ELSE
        IF     (SIZE(fit%w0_large) .EQ. 3) THEN
-          get_ssa_nir = fit_to_2D(effective_radius, fit%w0_large)
+          get_ssa_nir = fit_to_2D(cloud_effective_radius, fit%w0_large)
        ELSEIF (SIZE(fit%w0_large) .EQ. 4) THEN
-          get_ssa_nir = fit_to_3D(effective_radius, fit%w0_large)
+          get_ssa_nir = fit_to_3D(cloud_effective_radius, fit%w0_large)
        ELSEIF (SIZE(fit%w0_large) .EQ. 5) THEN
-          get_ssa_nir = fit_to_4D(effective_radius, fit%w0_large)
+          get_ssa_nir = fit_to_4D(cloud_effective_radius, fit%w0_large)
        END IF
     END IF
 
