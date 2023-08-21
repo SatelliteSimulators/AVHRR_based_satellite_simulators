@@ -13,7 +13,6 @@ MODULE CALC_FROM_MODEL
   USE MODEL_INPUT,               ONLY: MODEL_TYPE
   USE OPTICS_M,                  ONLY: OPTICS_LUT
   USE NAMELIST_INPUT,            ONLY: NAME_LIST
-  USE SATELLITE_SPECS,           ONLY: SATELLITE
   USE SIMULATOR_INPUT_VARIABLES, ONLY: SUBSET
 
 
@@ -298,7 +297,31 @@ CONTAINS
     ice_g   (1:ng,1:nl) = 0.0
     ice_w0  (1:ng,1:nl) = 0.0
 
-!    do i=1,ng
+    WHERE (.NOT.sub%data_mask .AND. SPREAD(sub%sunlit,2,nl).EQ.1 )
+       WHERE (sub%tau(1:ng,1:nl) > 0)
+          ! there is a cloud
+
+          water_g (1:ng,1:nl) = &
+               GET_G_NIR  (sub%lreff(1:ng,1:nl),LUT%water,phaseIsLiquid)
+          water_w0(1:ng,1:nl) = &
+               GET_SSA_NIR(sub%lreff(1:ng,1:nl),LUT%water,phaseIsLiquid)
+          ice_g   (1:ng,1:nl) = &
+               GET_G_NIR  (sub%ireff(1:ng,1:nl),LUT%ice,phaseIsIce)
+          ice_w0  (1:ng,1:nl) = &
+                  GET_SSA_NIR(sub%ireff(1:ng,1:nl),LUT%ice,phaseIsIce)
+
+          sub%w0 (1:ng,1:nl) = &
+               (sub%ltau(1:ng,1:nl)*water_w0(1:ng,1:nl) + &
+               sub%itau(1:ng,1:nl)*ice_w0(1:ng,1:nl)) / &
+               sub%tau(1:ng,1:nl)
+
+          sub%g0(1:ng,1:nl) = ( &
+               sub%ltau(1:ng,1:nl)*water_g(1:ng,1:nl)*water_w0(1:ng,1:nl) + &
+               sub%itau(1:ng,1:nl)*ice_g(1:ng,1:nl)*ice_w0(1:ng,1:nl) ) / &
+               (sub%w0(1:ng,1:nl)*sub%tau(1:ng,1:nl))
+       END WHERE
+    END WHERE
+    !    do i=1,ng
 !       do j =1,nl
 !    do i=57303,57303
 !       do j =41,nl
@@ -332,31 +355,6 @@ CONTAINS
 !          end if
 !       end do
 !    end do
-
-    WHERE (.NOT.sub%data_mask .AND. SPREAD(sub%sunlit,2,nl).EQ.1 )
-       WHERE (sub%tau(1:ng,1:nl) > 0)
-          ! there is a cloud
-
-          water_g (1:ng,1:nl) = &
-               GET_G_NIR  (sub%lreff(1:ng,1:nl),LUT%water,phaseIsLiquid)
-          water_w0(1:ng,1:nl) = &
-               GET_SSA_NIR(sub%lreff(1:ng,1:nl),LUT%water,phaseIsLiquid)
-          ice_g   (1:ng,1:nl) = &
-               GET_G_NIR  (sub%ireff(1:ng,1:nl),LUT%ice,phaseIsIce)
-          ice_w0  (1:ng,1:nl) = &
-                  GET_SSA_NIR(sub%ireff(1:ng,1:nl),LUT%ice,phaseIsIce)
-
-          sub%w0 (1:ng,1:nl) = &
-               (sub%ltau(1:ng,1:nl)*water_w0(1:ng,1:nl) + &
-               sub%itau(1:ng,1:nl)*ice_w0(1:ng,1:nl)) / &
-               sub%tau(1:ng,1:nl)
-
-          sub%g0(1:ng,1:nl) = ( &
-               sub%ltau(1:ng,1:nl)*water_g(1:ng,1:nl)*water_w0(1:ng,1:nl) + &
-               sub%itau(1:ng,1:nl)*ice_g(1:ng,1:nl)*ice_w0(1:ng,1:nl) ) / &
-               (sub%w0(1:ng,1:nl)*sub%tau(1:ng,1:nl))
-       END WHERE
-    END WHERE
 
 !    write(*,'(a5,x,i5,a,x,i2)') "grd =",57303,"top = 41 bottom =",nl
 !    write(*,'(a6,x,51(f7.2,x))') "ltau =",sub%ltau(57303,41:nl)

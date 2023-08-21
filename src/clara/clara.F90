@@ -136,7 +136,7 @@ PROGRAM CLARA_SIMULATOR
         atLeastOne=.TRUE.
      END IF
      IF (.NOT.atLeastOne) THEN
-        STOP " --- all files exist. set OVERWITE=.TRUE. to overwrite"
+        STOP " --- all files exist. set OVERWRITE=.TRUE. to overwrite"
      END IF
   END IF
 
@@ -328,9 +328,8 @@ PROGRAM CLARA_SIMULATOR
      clara%av%cflag_tot(d1,2) = clara%av%cflag_tot(d1,2)+COUNT(inter%cflag .EQ. 1)
      clara%av%cflag_tot(d1,3) = clara%av%cflag_tot(d1,3)+COUNT(inter%cflag .EQ. 2)
      clara%av%cflag_tot(d1,4) = clara%av%cflag_tot(d1,4)+COUNT(inter%cflag .EQ. 3)
+     clara%av%cflag_tot(d1,5) = clara%av%cflag_tot(d1,5)+COUNT(inter%cflag .EQ. 4)
   END DO ! end grid
-
-  IF (options%dbg>0) CALL CHECK_GRID_AVERAGES(model,sub,options,clara%av)
 
   IF (need2Average) THEN
      ! I need to save the sum and number of elements for all

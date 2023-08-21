@@ -54,13 +54,13 @@ PROGRAM CLOUD_CCI_SIMULATOR
        DEALLOCATE_MODEL_MATRIX,       &
        GET_MODEL_AUX,                 &
        INITIALISE_MODEL_MATRIX,       &
-       MODEL_TYPE,                    &                 
+       MODEL_TYPE,                    &
        READ_MODEL
   USE MY_MATHS,                  ONLY:&
        DAYOFYEAR
   USE NAMELIST_INPUT,            ONLY:&
        DEALLOCATE_NAMELIST,           &
-       NAME_LIST                      
+       NAME_LIST
   USE OPTICS_M,                  ONLY:&
        CLOUD_ALBEDO,                  &
        DEALLOCATE_OPTICS,             &
@@ -111,7 +111,7 @@ PROGRAM CLOUD_CCI_SIMULATOR
   REAL(wp),ALLOCATABLE,DIMENSION(:,:,:):: frac_out
 
   INTEGER :: year,month,day
-  INTEGER :: ins,i,itime,d1,t1,t2 
+  INTEGER :: ins,i,itime,d1,t1,t2
   INTEGER :: nc,nlon,nlat,nl,ng,n_tbins,n_pbins
   INTEGER, PARAMETER :: phaseIsLiquid = 1,phaseIsIce = 2
   LOGICAL :: atLeastOne,L2b,need2Average
@@ -128,7 +128,7 @@ PROGRAM CLOUD_CCI_SIMULATOR
   day  = options%epoch%day
   L2b   = options%L2b%doL2bSampling
   options%simVersionNumber=simVersionNumber
-  
+
   need2Average = (.NOT.options%L2b%doL2bSampling)
 
   ! ------------
@@ -143,7 +143,7 @@ PROGRAM CLOUD_CCI_SIMULATOR
            atLeastOne=.TRUE.
         END IF
      IF (.NOT.atLeastOne) THEN
-        STOP "--- all files exist. set OVERWITE=.TRUE. if you want to overwrite existing files ---"
+        STOP "--- all files exist. set OVERWRITE=.TRUE. if you want to overwrite existing files ---"
      END IF
   END IF
 
@@ -168,8 +168,8 @@ PROGRAM CLOUD_CCI_SIMULATOR
   IF (.NOT.options%paths%dailyFiles) THEN
      CALL GET_MODEL_AUX(model%aux,options,.TRUE.)
   END IF
-  nlat   = model%aux%nlat 
-  nlon   = model%aux%nlon 
+  nlat   = model%aux%nlat
+  nlon   = model%aux%nlon
   nl   = model%aux%nlev
   ng = model%aux%ngrids
   nc     = options%ncols
@@ -182,7 +182,7 @@ PROGRAM CLOUD_CCI_SIMULATOR
        frac_out2   (       nc,nl   ),&
        LST         (ng           ),&
        TOD         (ng           ))
-       
+
   frac_out= missing
   frac_out2= missing
   LST     = missing
@@ -194,7 +194,7 @@ PROGRAM CLOUD_CCI_SIMULATOR
   CALL ALLOCATE_SIMULATOR(sim,ng)
   CALL ALLOCATE_INTERNAL_SIMULATOR(inter,nc,nl,options)
   CALL ALLOCATE_CLOUD_CCI(cloud_cci,options,model%aux)
-  
+
   ! ----------------------------
   !          Cloud_cci LUT's
   ! ------------------------------
@@ -219,10 +219,10 @@ PROGRAM CLOUD_CCI_SIMULATOR
 
   IF (CHECK_FILE(sim%netcdf_file).AND..NOT.options%overwrite_existing)&
        PRINT '(a,a)',"file already exists:",TRIM(sim%netcdf_file)
-  !     
+  !
   ! ------
   ! Restart these at the end of every full day
-  
+
   CALL INITIALISE_CLOUD_CCI(cloud_cci,ng,n_pbins,n_tbins)
   CALL INITIALISE_SIM_INPUT(sub,options,ng,nl,model%aux%lat)
   CALL INITIALISE_SIMULATOR(sim,ng)
@@ -232,7 +232,7 @@ PROGRAM CLOUD_CCI_SIMULATOR
 
      ! start measuring the time it takes
      CALL SYSTEM_CLOCK (startTime,clock_rate)
-     
+
      utc = MOD(model%aux%time(itime),24._wp) + model%aux%ref%hour
      day_of_year = DAYOFYEAR(year,month,day)
      TOD = sim%fvr
@@ -244,7 +244,7 @@ PROGRAM CLOUD_CCI_SIMULATOR
         !The following routine makes interpolated model fields, and
         ! a isL2b If the local time is 'x', what is that time in
         ! UTC at that longitude?
-        
+
         CALL MAKE_LEVEL2B(year,month,day,t1,t2,&
              sat%overpass,options,previous,model,TOD)
         ! next time skip to the next day since I use t1 and t2 in the above routine
@@ -253,14 +253,14 @@ PROGRAM CLOUD_CCI_SIMULATOR
              "reading model input for:","yr =",year,', mn =',month,&
              ', day =',day,&
              ', utc =',utc
-        CALL READ_MODEL(model,itime,options)              
+        CALL READ_MODEL(model,itime,options)
      END IF
      ! --------- end sampling model
 
      ! ------------------
      ! DATA MASK
      ! only do calculations where .not. data_mask
-     
+
      ! --------------
      ! local solar time
      !
@@ -268,22 +268,22 @@ PROGRAM CLOUD_CCI_SIMULATOR
      LST(1:ng) = &
           & MERGE(sat%overpass,&
           MOD(utc+24._wp/360._wp*RESHAPE(model%aux%lon,(/ng/)),24._wp),L2b)
-        
+
      sub%solzen(1:ng) = &
           SOLAR_ZENITH_ANGLE(model%aux%lat_v(1:ng),day_of_year,&
           LST(1:ng),ng)
-     
+
      WHERE (sub%solzen .LE. options%daynight%daylim)
         sub%sunlit(1:ng) = 1
      END WHERE
 
      ! ------------------- END finding mask
-     
+
      ! Need to immediately clear away bad values
      CALL CORRECT_MODEL_CLOUD_FRACTION(model,ng,nl,nc)
-     
+
      CALL CALC_MODEL_VERTICAL_PROPERTIES(ng,nl,model,sub,options)
-     
+
      CALL GET_MODEL_SSA_AND_G(sub,options%sim_aux%LUT,ng,nl)
 
      ! ------ get corrected temperature profile -----
@@ -309,16 +309,16 @@ PROGRAM CLOUD_CCI_SIMULATOR
 
         ! empty internal
         CALL INITIALISE_INTERNAL_SIMULATOR(inter,nc,nl,options)
-        
+
         frac_out2=frac_out(d1,:,:)
-        
+
         CALL GET_CLOUD_MICROPHYSICS(d1,nc,nl,frac_out2,&
              inter,sub,options)
 
         DO ins = 1,nc
-           ! --- loop over sub-columns         
+           ! --- loop over sub-columns
            IF (inter%cflag(ins) .LT. 2) CYCLE ! i.e., tau>tau_min
-           
+
            ! the CTTH routines need some rewriting if I want to
            ! avoid the loop
            CALL CTTH(d1,ins,nl,sub,inter)
@@ -343,7 +343,7 @@ PROGRAM CLOUD_CCI_SIMULATOR
 
               IF (inter%cloud_cci%albedoIsDefined(ins)) THEN
                  inter%cloud_cci%cla_vis006(ins) = &
-                      ALBEDO(alb,options%sim_aux%LUT%GZero) 
+                      ALBEDO(alb,options%sim_aux%LUT%GZero)
               END IF
            END IF
         END DO
@@ -369,12 +369,11 @@ PROGRAM CLOUD_CCI_SIMULATOR
         cloud_cci%av%hist2d_cot_ctp(d1,1:n_tbins,1:n_pbins,1:2) = &
              GET_PTAU(nc,n_tbins,n_pbins,options,&
              inter%tau,inter%cloud_cci%ctp_c,inter%cph)
-        
+
         CALL GRID_AVERAGE(d1,sub,inter,nc,cloud_cci%av)
 
      END DO ! end ng
-     IF (options%dbg>0) CALL CHECK_GRID_AVERAGES(model,sub,options,cloud_cci%av)
-     
+
      IF (need2Average) THEN
         ! I need to save the sum and number of elements for all
         ! variables and empty them after each time step
@@ -385,7 +384,7 @@ PROGRAM CLOUD_CCI_SIMULATOR
      CALL SYSTEM_CLOCK(endTime)
      elapsed = elapsed+REAL(endTime-startTime)/REAL(clock_rate)
      CALL TIME_KEEPER(elapsed)
-        
+
   END DO  ! itime
 
   IF (need2Average) THEN
@@ -398,7 +397,7 @@ PROGRAM CLOUD_CCI_SIMULATOR
 
   PRINT '(A,A)',"Writing simulator results to NetCDF file:&
        & ",TRIM(sim%netcdf_file)
-  
+
   CALL MAKE_NETCDF(model,sim,options,day,S=sub,sat=sat,IN=cloud_cci)
 
   ! ---------------
@@ -413,9 +412,9 @@ PROGRAM CLOUD_CCI_SIMULATOR
   CALL DEALLOCATE_SATELLITE_SPECS(sat)
   CALL DEALLOCATE_OPTICS(options%sim_aux%LUT)
   CALL DEALLOCATE_CLOUD_CCI(cloud_cci)
-  
+
   DEALLOCATE (frac_out,frac_out2,LST,TOD)
-  
+
   PRINT *,"Finished !!!"
 CONTAINS
 
