@@ -108,8 +108,8 @@ MODULE MODEL_INPUT
      REAL(wp), ALLOCATABLE, DIMENSION(:)   :: time
      TYPE(ref_time_type) :: ref
      REAL(wp) :: modelRes
-     REAL(wp) :: fvr = -999._wp ! 1.e+20
-     INTEGER  :: fvi = -999
+     REAL(wp) :: fvr = -9._wp ! 1.e+20
+     INTEGER  :: fvi = -9
      INTEGER  :: nlon, nlat, nlev, ntlen, ngrids
      CHARACTER(len = 1000) :: netcdf_file
 
@@ -191,7 +191,7 @@ CONTAINS
        IF (time .AND. str .NE. 'time') CYCLE
        IF (str .EQ. 'time') THEN
           ALLOCATE( aux%time(len) )
-          aux%time=-999._wp
+          aux%time=-9._wp
           CALL CHECK( nf90_inq_varid(ncid, str, varid) )
           CALL CHECK( nf90_get_var(ncid, varid, aux%time) ,dbg,'reading '//str);
           aux%ntlen = len
@@ -470,7 +470,7 @@ CONTAINS
     REAL(wp)                        :: init
 
     IF (.NOT.PRESENT(mv)) THEN
-       init=-999._wp
+       init=-9._wp
     ELSE
        init=mv
     END IF

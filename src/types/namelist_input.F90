@@ -77,7 +77,8 @@ MODULE namelist_input
      !
      ! 'cf_method'         technique to determine cloud fraction.
      !                     0 = global constant (tau_min)
-     !                     1 = probability of detection based on optical depth bins
+     !                     1 = lat/lon -gridded probability of detection based on optical depth bins
+     !                     2 = lat/lon -gridded probability of detection and false alarm rate based on optical depth bins
      !
      ! 'tau_min'            = Cloud optical depth threshold for CLARA-A1. This
      !                        should be listed in the namelist
@@ -120,6 +121,7 @@ MODULE namelist_input
      INTEGER  :: n_tbins, n_pbins
   END TYPE ctp_tau
   TYPE namelist_sim
+     LOGICAL :: doClaas
      LOGICAL :: doClara
      LOGICAL :: doCloud_cci
      LOGICAL :: doISCCP
@@ -218,7 +220,7 @@ CONTAINS
     NAMELIST/paths/CDR,model_name,model_input,sim_output,dailyFiles
     NAMELIST/other/dbg,overwrite_existing,subsampler,use_satellite
 
-    day=-999
+    day=-9
     exists = .TRUE.
     INQUIRE(FILE=TRIM(file), EXIST=exists)
     IF (.NOT. exists) THEN

@@ -8,7 +8,7 @@ MODULE CLOUD_CCI_M
   USE COSP_KINDS,          ONLY: WP
   USE MODEL_INPUT,         ONLY: MODEL_AUX
   USE NAMELIST_INPUT,      ONLY: &
-       COMMON_NAMELIST,          & 
+       COMMON_NAMELIST,          &
        INITIALISE_VARIABLE_FLAG, &
        NAMELIST_CTP_TAU,         &
        NAMELIST_DAYNIGHT,        &
@@ -84,7 +84,7 @@ CONTAINS
 
     need2Average = (.NOT.options%L2b%doL2bSampling .OR. options%L2b%node.EQ."all")
 
-    ngrids  = aux%ngrids 
+    ngrids  = aux%ngrids
     n_tbins = options%ctp_tau%n_tbins
     n_pbins = options%ctp_tau%n_pbins
 
@@ -153,7 +153,7 @@ CONTAINS
     TYPE(cloud_cci_type), INTENT(inout)  :: cloud_cci
     INTEGER, INTENT(in) :: ngrids,n_tbins,n_pbins
 
-    CALL INITIALISE_CLOUD_CCI_SIM(cloud_cci%av,ngrids,-999._wp,n_pbins,n_tbins)
+    CALL INITIALISE_CLOUD_CCI_SIM(cloud_cci%av,ngrids,-9._wp,n_pbins,n_tbins)
 
     IF (ALLOCATED(cloud_cci%sum%ctp)) THEN
        CALL INITIALISE_CLOUD_CCI_SIM(cloud_cci%sum,ngrids,0._wp,n_pbins,n_tbins)
@@ -276,46 +276,46 @@ CONTAINS
          cfc,cfc_low,cfc_mid,cfc_high,cla_vis006,cot,cot_ice,cot_liq,&
          cth,ctp,ctp_log,ctt,cth_corrected,ctp_corrected,ctt_corrected,&
          hist2d_cot_ctp,iwp,lwp
-    
+
     NAMELIST/variables2run/land_sea,solzen,time_of_day,cer_ice,cer_liq,&
          cfc,cfc_low,cfc_mid,cfc_high,cla_vis006,cot,cot_ice,cot_liq,&
          cth,ctp,ctp_log,ctt,cth_corrected,ctp_corrected,ctt_corrected,&
          hist2d_cot_ctp,iwp,lwp
-    
+
     CALL initialise_variable_flag(land_sea,solzen,time_of_day,cer_ice,cer_liq,&
          cfc,cfc_low,cfc_mid,cfc_high,cla_vis006,cot,cot_ice,cot_liq,&
          cth,ctp,ctp_log,ctt,cth_corrected,ctp_corrected,ctt_corrected,&
          hist2d_cot_ctp,iwp,lwp)
-    
-    
+
+
     OPEN(10,file=file,status='old')
-    READ(10,variables2run)  
+    READ(10,variables2run)
     CLOSE(10)
 
-    x%vars%land_sea       = land_sea      
-    x%vars%solzen         = solzen     
-    x%vars%time_of_day    = time_of_day   
-    x%vars%cer_ice        = cer_ice       
-    x%vars%cer_liq        = cer_liq       
-    x%vars%cfc            = cfc           
-    x%vars%cfc_low        = cfc_low       
-    x%vars%cfc_mid        = cfc_mid       
-    x%vars%cfc_high       = cfc_high      
-    x%vars%cla_vis006     = cla_vis006    
-    x%vars%cot            = cot           
-    x%vars%cot_ice        = cot_ice       
-    x%vars%cot_liq        = cot_liq       
-    x%vars%cth            = cth           
-    x%vars%ctp            = ctp           
-    x%vars%ctp_log        = ctp_log       
-    x%vars%ctt            = ctt           
-    x%vars%cth_corrected  = cth_corrected 
-    x%vars%ctp_corrected  = ctp_corrected 
-    x%vars%ctt_corrected  = ctt_corrected 
+    x%vars%land_sea       = land_sea
+    x%vars%solzen         = solzen
+    x%vars%time_of_day    = time_of_day
+    x%vars%cer_ice        = cer_ice
+    x%vars%cer_liq        = cer_liq
+    x%vars%cfc            = cfc
+    x%vars%cfc_low        = cfc_low
+    x%vars%cfc_mid        = cfc_mid
+    x%vars%cfc_high       = cfc_high
+    x%vars%cla_vis006     = cla_vis006
+    x%vars%cot            = cot
+    x%vars%cot_ice        = cot_ice
+    x%vars%cot_liq        = cot_liq
+    x%vars%cth            = cth
+    x%vars%ctp            = ctp
+    x%vars%ctp_log        = ctp_log
+    x%vars%ctt            = ctt
+    x%vars%cth_corrected  = cth_corrected
+    x%vars%ctp_corrected  = ctp_corrected
+    x%vars%ctt_corrected  = ctt_corrected
     x%vars%hist2d_cot_ctp = hist2d_cot_ctp
-    x%vars%iwp            = iwp           
-    x%vars%lwp            = lwp           
-    
+    x%vars%iwp            = iwp
+    x%vars%lwp            = lwp
+
   END SUBROUTINE variables_cloud_cci
-  
+
 END MODULE CLOUD_CCI_M

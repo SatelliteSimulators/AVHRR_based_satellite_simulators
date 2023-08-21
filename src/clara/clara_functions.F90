@@ -68,7 +68,7 @@ SUBROUTINE CTTH(d1,ins,CDR,model,S,inter)
 
    ! debug
    REAL(wp) :: cth
-   cth=-999._wp
+   cth=-9._wp
    nlev = model%aux%nlev
    ! debug
 
@@ -262,7 +262,7 @@ SUBROUTINE CLARA_A2_OPAQUE(d1,ins,model,S,inter)
    ! PPS 2014 places a cloud in an inversion
    ! if Tb is within 0.5K of the inversion temperature
    REAL(wp), PARAMETER :: DistanceToInversion = 0.5
-   REAL(wp), PARAMETER :: fill=-999._wp
+   REAL(wp), PARAMETER :: fill=-9._wp
    LOGICAL :: found
 
    nlev = model%aux%nlev
@@ -523,7 +523,7 @@ END SUBROUTINE CLARA_A2_OPAQUE
     INTEGER :: ncld,nliq,nice
     LOGICAL,DIMENSION(ncol) :: iscloud,isliquid,isice,islow,ismid,ishigh
     REAL(wp):: tmpCTP_log(ncol)
-    REAL(wp):: re_fill=-999
+    REAL(wp):: re_fill=-9
 
     iscloud  (1:ncol) = inter%cflag(1:ncol).GE.2 ! i.e., tau>tau_min
     isliquid (1:ncol) = (inter%cph (1:ncol).EQ.1).AND.iscloud(1:ncol)
@@ -631,7 +631,7 @@ END SUBROUTINE CLARA_A2_OPAQUE
     IN%sum%hist2d_cot_ctp = IN%sum%hist2d_cot_ctp+IN%av%hist2d_cot_ctp
 
     ! reset these values
-    CALL INITIALISE_CLARA_SIM(IN%av,ngrids,-999._wp,n_pbins,n_tbins)
+    CALL INITIALISE_CLARA_SIM(IN%av,ngrids,-9._wp,n_pbins,n_tbins)
 
   END SUBROUTINE DAY_ADD
 
@@ -657,31 +657,31 @@ END SUBROUTINE CLARA_A2_OPAQUE
     numel_day  = MERGE(IN%numel%day, 0.1_wp,IN%numel%day>0)
 
     ! always defined
-    IN%av%cfc     = MERGE(IN%sum%cfc     /numel_grd,-999._wp,numel_grd>0.1_wp)
-    IN%av%cfc_low = MERGE(IN%sum%cfc_low /numel_grd,-999._wp,numel_grd>0.1_wp)
-    IN%av%cfc_mid = MERGE(IN%sum%cfc_mid /numel_grd,-999._wp,numel_grd>0.1_wp)
-    IN%av%cfc_high= MERGE(IN%sum%cfc_high/numel_grd,-999._wp,numel_grd>0.1_wp)
+    IN%av%cfc     = MERGE(IN%sum%cfc     /numel_grd,-9._wp,numel_grd>0.1_wp)
+    IN%av%cfc_low = MERGE(IN%sum%cfc_low /numel_grd,-9._wp,numel_grd>0.1_wp)
+    IN%av%cfc_mid = MERGE(IN%sum%cfc_mid /numel_grd,-9._wp,numel_grd>0.1_wp)
+    IN%av%cfc_high= MERGE(IN%sum%cfc_high/numel_grd,-9._wp,numel_grd>0.1_wp)
 
     ! always defined if cloud is present
-    IN%av%cth    = MERGE(IN%sum%cth    /numel_cld,-999._wp,numel_cld>0.1_wp)
-    IN%av%ctp    = MERGE(IN%sum%ctp    /numel_cld,-999._wp,numel_cld>0.1_wp)
-    IN%av%ctp_log= MERGE(IN%sum%ctp_log/numel_cld,-999._wp,numel_cld>0.1_wp)
-    IN%av%ctt    = MERGE(IN%sum%ctt    /numel_cld,-999._wp,numel_cld>0.1_wp)
+    IN%av%cth    = MERGE(IN%sum%cth    /numel_cld,-9._wp,numel_cld>0.1_wp)
+    IN%av%ctp    = MERGE(IN%sum%ctp    /numel_cld,-9._wp,numel_cld>0.1_wp)
+    IN%av%ctp_log= MERGE(IN%sum%ctp_log/numel_cld,-9._wp,numel_cld>0.1_wp)
+    IN%av%ctt    = MERGE(IN%sum%ctt    /numel_cld,-9._wp,numel_cld>0.1_wp)
 
     ! only defined during daytime
-    IN%av%cfc_day= MERGE(IN%sum%cfc_day/numel_day,-999._wp,numel_day>0.1_wp)
-    IN%av%cot_ice= MERGE(IN%sum%cot_ice/numel_day,-999._wp,numel_day>0.1_wp)
-    IN%av%iwp    = MERGE(IN%sum%iwp    /numel_day,-999._wp,numel_day>0.1_wp)
-    IN%av%cot_liq= MERGE(IN%sum%cot_liq/numel_day,-999._wp,numel_day>0.1_wp)
-    IN%av%lwp    = MERGE(IN%sum%lwp    /numel_day,-999._wp,numel_day>0.1_wp)
-    IN%av%tau    = MERGE(IN%sum%tau    /numel_day,-999._wp,numel_day>0.1_wp)
+    IN%av%cfc_day= MERGE(IN%sum%cfc_day/numel_day,-9._wp,numel_day>0.1_wp)
+    IN%av%cot_ice= MERGE(IN%sum%cot_ice/numel_day,-9._wp,numel_day>0.1_wp)
+    IN%av%iwp    = MERGE(IN%sum%iwp    /numel_day,-9._wp,numel_day>0.1_wp)
+    IN%av%cot_liq= MERGE(IN%sum%cot_liq/numel_day,-9._wp,numel_day>0.1_wp)
+    IN%av%lwp    = MERGE(IN%sum%lwp    /numel_day,-9._wp,numel_day>0.1_wp)
+    IN%av%tau    = MERGE(IN%sum%tau    /numel_day,-9._wp,numel_day>0.1_wp)
 
     ! only if correct phase/retrievable (also daytime)
-    IN%av%ref_ice= MERGE(IN%sum%ref_ice/numel_icld,-999._wp,numel_icld>0.1_wp)
-    IN%av%ref_liq= MERGE(IN%sum%ref_liq/numel_lcld,-999._wp,numel_lcld>0.1_wp)
+    IN%av%ref_ice= MERGE(IN%sum%ref_ice/numel_icld,-9._wp,numel_icld>0.1_wp)
+    IN%av%ref_liq= MERGE(IN%sum%ref_liq/numel_lcld,-9._wp,numel_lcld>0.1_wp)
 
     ! postprocessing
-    IN%av%ctp_log  = MERGE(EXP(IN%av%ctp_log),-999._wp,IN%av%ctp_log>0  )
+    IN%av%ctp_log  = MERGE(EXP(IN%av%ctp_log),-9._wp,IN%av%ctp_log>0  )
     IN%av%hist2d_cot_ctp = IN%sum%hist2d_cot_ctp
 
   END SUBROUTINE DAY_AVERAGE
@@ -1022,7 +1022,7 @@ END SUBROUTINE CLARA_A2_OPAQUE
 
     clara_found    = .FALSE.
     inv_ind = 1
-    inversion(1:nlev) = -999
+    inversion(1:nlev) = -9
 
     DO inl = nlev,1,-1
        IF (S%inv_layers(d1,inl) .GT. 0) THEN

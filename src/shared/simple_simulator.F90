@@ -136,7 +136,7 @@ CONTAINS
     tau_tot      = SUM(inter%tau_profile(ins,1:nlev))
     L2 = 0
     L1 = 0
-    trop_lev = -999
+    trop_lev = -9
 
     ! Use the tropopause level to limit clouds to the troposphere.
     ! FIND_TEMPERATUREINVERSIONS() ensures that the tropopause is

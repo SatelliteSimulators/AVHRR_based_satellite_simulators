@@ -33,7 +33,7 @@ MODULE data_check
   REAL(wp), PARAMETER :: ctt_min  = T_min,      ctt_max  = T_max
   REAL(wp), PARAMETER :: epsR = 1000*EPSILON(1._wp)
   REAL(wp), PARAMETER :: frac_min = 0,          frac_max = 1
-  REAL(wp), PARAMETER :: missing = -999._wp
+  REAL(wp), PARAMETER :: missing = -9._wp
   REAL(wp), PARAMETER :: p_tau_min=0,           p_tau_max=4.e7
   REAL(wp), PARAMETER :: tau_min = 0,           tau_max  = 4000 ! 200 would be reasonable...
 
@@ -367,7 +367,7 @@ CONTAINS
 
     ! deal with inversions
     inv_ind = 1
-    inversion(1:nlev) = -999
+    inversion(1:nlev) = -9
     DO inl = nlev,1,-1
        IF (S%inv_layers(d1,inl) .GT. 0) THEN
           inversion(inv_ind) = S%inv_layers(d1,inl)

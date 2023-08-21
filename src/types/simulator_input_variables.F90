@@ -5,7 +5,6 @@ MODULE simulator_input_variables
   ! Salomon.Eliasson@smhi.se
 
   USE namelist_input,  ONLY: name_list
-  USE satellite_specs, ONLY: satellite
   USE cosp_kinds,      ONLY: wp
 
   IMPLICIT NONE
@@ -130,7 +129,7 @@ contains
             sub%surf_irradiance(ngrids      ),&
             sub%surf_IR_em     (ngrids      ) )
     END IF
-    IF (options%sim%doCLARA .OR. options%sim%doCloud_cci) THEN
+    IF (options%sim%doCLARA .OR. options%sim%doCloud_cci .OR. options%sim%doClaas) THEN
        ALLOCATE( sub%g0          (ngrids,nlev    ),&
             sub%w0          (ngrids,nlev    ) )
     END IF
@@ -152,36 +151,36 @@ contains
     sub%height          (1:ngrids,1:nlev+1 )= 0._wp
     sub%sunlit          (1:ngrids          )= 0
     sub%inv_layers(1:ngrids,1:nlev   )= 0
-    sub%ireff           (1:ngrids,1:nlev   )= -999._wp
+    sub%ireff           (1:ngrids,1:nlev   )= -9._wp
     sub%itau            (1:ngrids,1:nlev   )= 0._wp
     sub%iwc             (1:ngrids,1:nlev-1 )= 0._wp
     sub%iwp             (1:ngrids,1:nlev   )= 0._wp
     sub%isL2b           (1:ngrids          )= .FALSE.
-    sub%lreff           (1:ngrids,1:nlev   )= -999._wp
+    sub%lreff           (1:ngrids,1:nlev   )= -9._wp
     sub%ltau            (1:ngrids,1:nlev   )= 0._wp
     sub%lwc             (1:ngrids,1:nlev-1 )= 0._wp
     sub%lwp             (1:ngrids,1:nlev   )= 0._wp
-    sub%p_int           (1:ngrids,1:nlev+1 )= -999._wp
-    sub%p_mid           (1:ngrids,1:nlev   )= -999._wp
+    sub%p_int           (1:ngrids,1:nlev+1 )= -9._wp
+    sub%p_mid           (1:ngrids,1:nlev   )= -9._wp
     sub%tau             (1:ngrids,1:nlev   )= 0._wp
-    sub%Tcorr           (1:ngrids,1:nlev+1 )= -999._wp
+    sub%Tcorr           (1:ngrids,1:nlev+1 )= -9._wp
     IF (.NOT. options%sim%doRTTOV) &
-         sub%solzen     (1:ngrids          )= -999._wp
+         sub%solzen     (1:ngrids          )= -9._wp
 
     IF (options%sim%doClara .OR. options%sim%doISCCP) THEN
-       sub%cloud_emis     (1:ngrids,1:nlev   )= -999._wp
-       sub%irradiance     (1:ngrids,1:nlev   )= -999._wp
-       sub%Q_kgm2         (1:ngrids,1:nlev   )= -999._wp
-       sub%surf_irradiance(1:ngrids          )= -999._wp
+       sub%cloud_emis     (1:ngrids,1:nlev   )= -9._wp
+       sub%irradiance     (1:ngrids,1:nlev   )= -9._wp
+       sub%Q_kgm2         (1:ngrids,1:nlev   )= -9._wp
+       sub%surf_irradiance(1:ngrids          )= -9._wp
        sub%surf_IR_em     (1:ngrids          )= 0.98_wp
     END IF
     IF (options%sim%doCLARA .OR. options%sim%doCloud_cci) THEN
-       sub%g0             (1:ngrids,1:nlev   )= -999._wp
-       sub%w0             (1:ngrids,1:nlev   )= -999._wp
+       sub%g0             (1:ngrids,1:nlev   )= -9._wp
+       sub%w0             (1:ngrids,1:nlev   )= -9._wp
     END IF
     IF (options%sim%doCLARA .OR. options%sim%doRTTOV) THEN
-       sub%surfType       (1:ngrids          )= -999
-       sub%waterType      (1:ngrids          )= -999
+       sub%surfType       (1:ngrids          )= -9
+       sub%waterType      (1:ngrids          )= -9
     END IF
 
   END SUBROUTINE initialise_sim_input
@@ -219,7 +218,7 @@ contains
             sub%surf_IR_em       )
 
     END IF
-    IF (options%sim%doCLARA .OR. options%sim%doCloud_cci) THEN
+    IF (options%sim%doCLARA .OR. options%sim%doCloud_cci .OR. options%sim%doClaas) THEN
        DEALLOCATE(sub%g0 ,&
             sub%w0 )
     END IF

@@ -32,8 +32,8 @@ MODULE simulator_variables
      CHARACTER(len=200)    :: netcdf_file
      INTEGER               :: epoch
      INTEGER               :: date,dtg
-     INTEGER               :: fvi = -999
-     REAL(wp)              :: fvr = -999._wp ! 1.e+20
+     INTEGER               :: fvi = -9
+     REAL(wp)              :: fvr = -9._wp ! 1.e+20
      INTEGER               :: ncols
      REAL(wp), ALLOCATABLE :: time_of_day  (:)
   END TYPE satellite_simulator
@@ -55,7 +55,7 @@ CONTAINS
     TYPE(satellite_simulator), INTENT(inout) :: sim
     INTEGER, INTENT(in)           :: ngrids
 
-    sim%time_of_day(1:ngrids) = -999._wp
+    sim%time_of_day(1:ngrids) = -9._wp
 
   END SUBROUTINE initialise_simulator
   SUBROUTINE deallocate_simulator(sim)

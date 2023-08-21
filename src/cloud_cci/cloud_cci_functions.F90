@@ -83,7 +83,7 @@ CONTAINS
     REAL(wp), PARAMETER          :: corr_ctx_lim   = 0.3
     REAL(wp)                     :: T(nlev)
 
-    T = S%Tcorr(d1,1:nlev) 
+    T = S%Tcorr(d1,1:nlev)
     IF (inter%cflag(ins) .GT. 1) THEN
 
        ! i.e. not subvisible (only semi-transparent or opaque)
@@ -114,7 +114,7 @@ CONTAINS
     INTEGER :: ncld,nliq,nice,nalb
     LOGICAL,DIMENSION(ncol) :: iscloud,isliquid,isice,isalb,islow,ismid,ishigh
     REAL(wp):: tmpCTP_log(ncol)
-    REAL(wp):: re_fill=-999
+    REAL(wp):: re_fill=-9
 
     iscloud  (1:ncol) = inter%cflag(1:ncol).GE.2 ! i.e., tau>tau_min
     isliquid (1:ncol) = (inter%cph (1:ncol).EQ.1).AND.iscloud(1:ncol)
@@ -124,7 +124,7 @@ CONTAINS
     islow  = inter%ctp.GE.cloud_low
     ismid  = inter%ctp.LT.cloud_low.AND.inter%ctp.GE.cloud_mid
     ishigh = inter%ctp.LT.cloud_mid.AND.iscloud
-    
+
     ncld = COUNT(iscloud)
     nliq = COUNT(isliquid)
     nice = COUNT(isice)
@@ -133,7 +133,7 @@ CONTAINS
     ! initialise values that are defined even when no cloud is present
     IN%cot_ice(d1) = MERGE(0._wp,re_fill,S%sunlit(d1).EQ.1)
     IN%iwp    (d1) = MERGE(0._wp,re_fill,S%sunlit(d1).EQ.1)
-    IN%cot_liq(d1) = MERGE(0._wp,re_fill,S%sunlit(d1).EQ.1)       
+    IN%cot_liq(d1) = MERGE(0._wp,re_fill,S%sunlit(d1).EQ.1)
     IN%lwp    (d1) = MERGE(0._wp,re_fill,S%sunlit(d1).EQ.1)
     IN%tau    (d1) = MERGE(0._wp,re_fill,S%sunlit(d1).EQ.1)
 
@@ -203,25 +203,25 @@ CONTAINS
 
        ! Get the sum
        tmpctp_log       = MERGE(IN%av%ctp_log, 0.1_wp,IN%av%ctp_log >0)
-       IN%sum%cfc       = MERGE(IN%sum%cfc     +IN%av%cfc,     IN%sum%cfc,     IN%av%cfc     >0) 
-       IN%sum%cfc_low   = MERGE(IN%sum%cfc_low +IN%av%cfc_low, IN%sum%cfc_low, IN%av%cfc_low >0) 
-       IN%sum%cfc_mid   = MERGE(IN%sum%cfc_mid +IN%av%cfc_mid, IN%sum%cfc_mid, IN%av%cfc_mid >0) 
-       IN%sum%cfc_high  = MERGE(IN%sum%cfc_high+IN%av%cfc_high,IN%sum%cfc_high,IN%av%cfc_high>0) 
+       IN%sum%cfc       = MERGE(IN%sum%cfc     +IN%av%cfc,     IN%sum%cfc,     IN%av%cfc     >0)
+       IN%sum%cfc_low   = MERGE(IN%sum%cfc_low +IN%av%cfc_low, IN%sum%cfc_low, IN%av%cfc_low >0)
+       IN%sum%cfc_mid   = MERGE(IN%sum%cfc_mid +IN%av%cfc_mid, IN%sum%cfc_mid, IN%av%cfc_mid >0)
+       IN%sum%cfc_high  = MERGE(IN%sum%cfc_high+IN%av%cfc_high,IN%sum%cfc_high,IN%av%cfc_high>0)
        IN%sum%cla_vis006= MERGE(IN%sum%cla_vis006+IN%av%cla_vis006,IN%sum%cla_vis006,IN%av%cla_vis006>0)
        IN%sum%cth       = MERGE(IN%sum%cth    +IN%av%cth,      IN%sum%cth,     IN%av%cth    >0)
-       IN%sum%ctp_log   = MERGE(IN%sum%ctp_log+LOG(tmpctp_log),IN%sum%ctp_log, IN%av%ctp_log>0) 
-       IN%sum%ctp       = MERGE(IN%sum%ctp    +IN%av%ctp,      IN%sum%ctp,     IN%av%ctp    >0) 
-       IN%sum%ctt       = MERGE(IN%sum%ctt    +IN%av%ctt,      IN%sum%ctt,     IN%av%ctt    >0) 
+       IN%sum%ctp_log   = MERGE(IN%sum%ctp_log+LOG(tmpctp_log),IN%sum%ctp_log, IN%av%ctp_log>0)
+       IN%sum%ctp       = MERGE(IN%sum%ctp    +IN%av%ctp,      IN%sum%ctp,     IN%av%ctp    >0)
+       IN%sum%ctt       = MERGE(IN%sum%ctt    +IN%av%ctt,      IN%sum%ctt,     IN%av%ctt    >0)
        IN%sum%cth_c     = MERGE(IN%sum%cth_c  +IN%av%cth_c,    IN%sum%cth_c,   IN%av%cth_c  >0)
        IN%sum%ctp_c     = MERGE(IN%sum%ctp_c  +IN%av%ctp_c,    IN%sum%ctp_c,   IN%av%ctp_c  >0)
        IN%sum%ctt_c     = MERGE(IN%sum%ctt_c  +IN%av%ctt_c,    IN%sum%ctt_c,   IN%av%ctt_c  >0)
-       IN%sum%cer_ice   = MERGE(IN%sum%cer_ice+IN%av%cer_ice,  IN%sum%cer_ice, IN%av%cer_ice>0) 
-       IN%sum%cot_ice   = MERGE(IN%sum%cot_ice+IN%av%cot_ice,  IN%sum%cot_ice, IN%av%cot_ice>0) 
-       IN%sum%iwp       = MERGE(IN%sum%iwp    +IN%av%iwp,      IN%sum%iwp,     IN%av%iwp    >0) 
-       IN%sum%cer_liq   = MERGE(IN%sum%cer_liq+IN%av%cer_liq,  IN%sum%cer_liq, IN%av%cer_liq>0) 
+       IN%sum%cer_ice   = MERGE(IN%sum%cer_ice+IN%av%cer_ice,  IN%sum%cer_ice, IN%av%cer_ice>0)
+       IN%sum%cot_ice   = MERGE(IN%sum%cot_ice+IN%av%cot_ice,  IN%sum%cot_ice, IN%av%cot_ice>0)
+       IN%sum%iwp       = MERGE(IN%sum%iwp    +IN%av%iwp,      IN%sum%iwp,     IN%av%iwp    >0)
+       IN%sum%cer_liq   = MERGE(IN%sum%cer_liq+IN%av%cer_liq,  IN%sum%cer_liq, IN%av%cer_liq>0)
        IN%sum%cot_liq   = MERGE(IN%sum%cot_liq+IN%av%cot_liq,  IN%sum%cot_liq, IN%av%cot_liq>0)
-       IN%sum%lwp       = MERGE(IN%sum%lwp    +IN%av%lwp,      IN%sum%lwp,    IN%av%lwp     >0) 
-       IN%sum%tau   = MERGE(IN%sum%tau  +IN%av%tau,    IN%sum%tau,  IN%av%tau   >0) 
+       IN%sum%lwp       = MERGE(IN%sum%lwp    +IN%av%lwp,      IN%sum%lwp,    IN%av%lwp     >0)
+       IN%sum%tau   = MERGE(IN%sum%tau  +IN%av%tau,    IN%sum%tau,  IN%av%tau   >0)
 
        ! Get the numel
        IN%numel%alb   = MERGE(IN%numel%alb+1, IN%numel%alb, IN%av%cla_vis006>0.AND.S%sunlit.EQ.1)
@@ -232,7 +232,7 @@ CONTAINS
     IN%sum%hist2d_cot_ctp = IN%sum%hist2d_cot_ctp+IN%av%hist2d_cot_ctp
 
     ! reset these values
-    CALL INITIALISE_CLOUD_CCI_SIM(IN%av,ngrids,-999._wp,n_pbins,n_tbins)
+    CALL INITIALISE_CLOUD_CCI_SIM(IN%av,ngrids,-9._wp,n_pbins,n_tbins)
 
   END SUBROUTINE DAY_ADD
 
@@ -260,34 +260,34 @@ CONTAINS
     numel_day  = MERGE(IN%numel%day, 0.1_wp,IN%numel%day>0)
 
     ! always defined
-    IN%av%cfc     = MERGE(IN%sum%cfc     /numel_grd,-999._wp,numel_grd>0.1_wp) 
-    IN%av%cfc_low = MERGE(IN%sum%cfc_low /numel_grd,-999._wp,numel_grd>0.1_wp) 
-    IN%av%cfc_mid = MERGE(IN%sum%cfc_mid /numel_grd,-999._wp,numel_grd>0.1_wp) 
-    IN%av%cfc_high= MERGE(IN%sum%cfc_high/numel_grd,-999._wp,numel_grd>0.1_wp) 
+    IN%av%cfc     = MERGE(IN%sum%cfc     /numel_grd,-9._wp,numel_grd>0.1_wp)
+    IN%av%cfc_low = MERGE(IN%sum%cfc_low /numel_grd,-9._wp,numel_grd>0.1_wp)
+    IN%av%cfc_mid = MERGE(IN%sum%cfc_mid /numel_grd,-9._wp,numel_grd>0.1_wp)
+    IN%av%cfc_high= MERGE(IN%sum%cfc_high/numel_grd,-9._wp,numel_grd>0.1_wp)
 
     ! always defined if cloud is present
-    IN%av%cth    = MERGE(IN%sum%cth    /numel_cld,-999._wp,numel_cld>0.1_wp)
-    IN%av%ctp    = MERGE(IN%sum%ctp    /numel_cld,-999._wp,numel_cld>0.1_wp) 
-    IN%av%ctp_log= MERGE(IN%sum%ctp_log/numel_cld,-999._wp,numel_cld>0.1_wp) 
-    IN%av%ctt    = MERGE(IN%sum%ctt    /numel_cld,-999._wp,numel_cld>0.1_wp)
-    IN%av%cth_c  = MERGE(IN%sum%cth_c  /numel_cld,-999._wp,numel_cld>0.1_wp)
-    IN%av%ctp_c  = MERGE(IN%sum%ctp_c  /numel_cld,-999._wp,numel_cld>0.1_wp)
-    IN%av%ctt_c  = MERGE(IN%sum%ctt_c  /numel_cld,-999._wp,numel_cld>0.1_wp) 
+    IN%av%cth    = MERGE(IN%sum%cth    /numel_cld,-9._wp,numel_cld>0.1_wp)
+    IN%av%ctp    = MERGE(IN%sum%ctp    /numel_cld,-9._wp,numel_cld>0.1_wp)
+    IN%av%ctp_log= MERGE(IN%sum%ctp_log/numel_cld,-9._wp,numel_cld>0.1_wp)
+    IN%av%ctt    = MERGE(IN%sum%ctt    /numel_cld,-9._wp,numel_cld>0.1_wp)
+    IN%av%cth_c  = MERGE(IN%sum%cth_c  /numel_cld,-9._wp,numel_cld>0.1_wp)
+    IN%av%ctp_c  = MERGE(IN%sum%ctp_c  /numel_cld,-9._wp,numel_cld>0.1_wp)
+    IN%av%ctt_c  = MERGE(IN%sum%ctt_c  /numel_cld,-9._wp,numel_cld>0.1_wp)
 
-    ! only defined during daytime  
-    IN%av%cot_ice= MERGE(IN%sum%cot_ice/numel_day,-999._wp,numel_day>0.1_wp) 
-    IN%av%iwp    = MERGE(IN%sum%iwp    /numel_day,-999._wp,numel_day>0.1_wp)
-    IN%av%cot_liq= MERGE(IN%sum%cot_liq/numel_day,-999._wp,numel_day>0.1_wp) 
-    IN%av%lwp    = MERGE(IN%sum%lwp    /numel_day,-999._wp,numel_day>0.1_wp) 
-    IN%av%tau    = MERGE(IN%sum%tau    /numel_day,-999._wp,numel_day>0.1_wp)
+    ! only defined during daytime
+    IN%av%cot_ice= MERGE(IN%sum%cot_ice/numel_day,-9._wp,numel_day>0.1_wp)
+    IN%av%iwp    = MERGE(IN%sum%iwp    /numel_day,-9._wp,numel_day>0.1_wp)
+    IN%av%cot_liq= MERGE(IN%sum%cot_liq/numel_day,-9._wp,numel_day>0.1_wp)
+    IN%av%lwp    = MERGE(IN%sum%lwp    /numel_day,-9._wp,numel_day>0.1_wp)
+    IN%av%tau    = MERGE(IN%sum%tau    /numel_day,-9._wp,numel_day>0.1_wp)
 
     ! only if correct phase/retrievable (also daytime)
-    IN%av%cla_vis006= MERGE(IN%sum%cla_vis006/numel_alb ,-999._wp,numel_alb >0.1_wp)
-    IN%av%cer_ice   = MERGE(IN%sum%cer_ice   /numel_icld,-999._wp,numel_icld>0.1_wp) 
-    IN%av%cer_liq   = MERGE(IN%sum%cer_liq   /numel_lcld,-999._wp,numel_lcld>0.1_wp) 
+    IN%av%cla_vis006= MERGE(IN%sum%cla_vis006/numel_alb ,-9._wp,numel_alb >0.1_wp)
+    IN%av%cer_ice   = MERGE(IN%sum%cer_ice   /numel_icld,-9._wp,numel_icld>0.1_wp)
+    IN%av%cer_liq   = MERGE(IN%sum%cer_liq   /numel_lcld,-9._wp,numel_lcld>0.1_wp)
 
     ! postprocessing
-    IN%av%ctp_log  = MERGE(EXP(IN%av%ctp_log),-999._wp,IN%av%ctp_log>0  )
+    IN%av%ctp_log  = MERGE(EXP(IN%av%ctp_log),-9._wp,IN%av%ctp_log>0  )
     IN%av%hist2d_cot_ctp = IN%sum%hist2d_cot_ctp
 
   END SUBROUTINE DAY_AVERAGE
@@ -375,22 +375,22 @@ CONTAINS
     END IF
 
     IF (S%sunlit(d1).EQ.1) THEN
-       
-       
+
+
        mask=.NOT.I%cloud_cci%albedoIsDefined
-       
+
        IF (ANY(.NOT.mask)) THEN
-          
+
           ! cloud albedo is undefined if outside the range of the
           ! lookup tables (no extrapolation is done)
           var='I%cloud_cci%cla_vis006'
           form='f7.2'
           whammy = whammy.OR.CHECK_VAR(var,form,ncol,nlev,&
                0._wp,100._wp,I%cloud_cci%cla_vis006,mask)
-          
+
        END IF
     END IF
-    
+
     IF (ANY(whammy).OR.PRESENT(print_profile)) THEN
        data_mask = .TRUE. !initialise to ignore every data point
        data_mask(d1,1:nlev) = .FALSE. ! except this point
@@ -474,82 +474,82 @@ CONTAINS
     END IF
 
     var='AV%cfc'
-    form='f8.3' 
+    form='f8.3'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          frac_min,frac_max,IN%cfc,dm)
 
     var='AV%cfc_low'
-    form='f8.3' 
+    form='f8.3'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          frac_min,frac_max,IN%cfc_low,dm)
 
     var='AV%cfc_mid'
-    form='f8.3' 
+    form='f8.3'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          frac_min,frac_max,IN%cfc_mid,dm)
 
     var='AV%cfc_high'
-    form='f8.3' 
+    form='f8.3'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          frac_min,frac_max,IN%cfc_high,dm)
-    
+
     var='AV%cla_vis006'
-    form='f9.2' 
+    form='f9.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          0._wp,100._wp,IN%cla_vis006,dm,except=missing)
 
     var='AV%cth'
-    form='f9.2' 
+    form='f9.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          cth_min,cth_max,IN%cth,dm,except=missing)
 
     var='AV%ctp_log'
-    form='f9.2' 
+    form='f9.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          ctp_min,ctp_max,IN%ctp_log,dm,scale=0.01_wp,except=missing)
 
     var='AV%ctp'
-    form='f9.2' 
+    form='f9.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          ctp_min,ctp_max,IN%ctp,dm,scale=0.01_wp,except=missing)
 
     var='AV%ctt'
-    form='f9.2' 
+    form='f9.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          ctt_min,ctt_max,IN%ctt,dm,except=missing)
-    
+
     var='AV%cot_ice'
-    form='f9.2' 
+    form='f9.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          tau_min,tau_max,IN%cot_ice,dm,except=missing)
 
     var='AV%cot_liq'
-    form='f9.2' 
+    form='f9.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          tau_min,tau_max,IN%cot_liq,dm,except=missing)
 
     var='AV%cer_ice'
-    form='f9.2' 
+    form='f9.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          cer_ice_min,cer_ice_max,IN%cer_ice,dm,except=missing)
 
     var='AV%cer_liq'
-    form='f9.2' 
+    form='f9.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          cer_liq_min,cer_liq_max,IN%cer_liq,dm,except=missing)
 
     var='AV%iwp'
-    form='f9.2' 
+    form='f9.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          iwp_min,iwp_max,IN%iwp,dm,scale=1000._wp,except=missing)
 
     var='AV%lwp'
-    form='f9.2' 
+    form='f9.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          lwp_min,lwp_max,IN%lwp,dm,scale=1000._wp,except=missing)
 
     var='AV%tau'
-    form='f9.2' 
+    form='f9.2'
     whammy=whammy.OR.CHECK_VAR(var,form,ngrids,nlev,&
          tau_min,tau_max,IN%tau,dm,except=missing)
 
@@ -566,7 +566,7 @@ CONTAINS
              PRINT *, " "
              PRINT '(a,1x,I4)',&
                   "These are all the gridded averages at d1=",d1
-             
+
              PRINT '(a)', "Cloud_cci"
              PRINT '(A14,F9.2," [%]")',     "IN%cfc      = ",IN%cfc(d1)*100
              PRINT '(A19,F9.2," [%]")',     "IN%cla_vis006 = ",IN%cla_vis006(d1)
@@ -585,23 +585,23 @@ CONTAINS
                   MERGE(IN%lwp(d1)*1000,IN%lwp(d1),IN%lwp(d1).GE.0)
              PRINT '(A14,F9.2," [deg]")',   "S%solzen    = ",S%solzen(d1)
              PRINT '(A14,F9.2," [-]")',     "IN%tau      = ",IN%tau(d1)
-             
+
              PRINT str,(options%ctp_tau%tbin_edges(tb),tb=1,n_tbins)
              DO pb = 1,n_pbins
                 PRINT str2,&
                      INT(options%ctp_tau%pbin_edges(pb)/100),&
-                     (INT(IN%hist2d_cot_ctp(d1,tb,pb,1)),tb=1,n_tbins)   
+                     (INT(IN%hist2d_cot_ctp(d1,tb,pb,1)),tb=1,n_tbins)
              END DO
              PRINT str,(options%ctp_tau%tbin_edges(tb),tb=1,n_tbins)
-             
+
              PRINT str,(options%ctp_tau%tbin_edges(tb),tb=1,n_tbins)
              DO pb = 1,n_pbins
                 PRINT str2,&
                      INT(options%ctp_tau%pbin_edges(pb)/100),&
-                     (INT(IN%hist2d_cot_ctp(d1,tb,pb,2)),tb=1,n_tbins)   
+                     (INT(IN%hist2d_cot_ctp(d1,tb,pb,2)),tb=1,n_tbins)
              END DO
              PRINT str,(options%ctp_tau%tbin_edges(tb),tb=1,n_tbins)
-             EXIT FAIL 
+             EXIT FAIL
           END IF
        END DO FAIL
     END IF
@@ -634,12 +634,12 @@ CONTAINS
 
     PRINT *," --------------- CTTH --------------"
     PRINT 1,"level","P_mid [hPa]","P_int [hPa]","Tcorr [K]","height [m]",&
-         "tau","scops","WHERE","Explanation" 
+         "tau","scops","WHERE","Explanation"
 
     cloud_cci_found = .FALSE.
     cloud_cci_c_found = .FALSE.
     inv_ind = 1
-    inversion(1:nlev) = -999
+    inversion(1:nlev) = -9
 
     DO inl = nlev,1,-1
        IF (S%inv_layers(d1,inl) .GT. 0) THEN
@@ -692,11 +692,11 @@ CONTAINS
             I%tau_profile (ins,inl),&
             frac_out      (    inl),&
             arrow,&
-            TRIM(description(2:200)) 
+            TRIM(description(2:200))
 
     END DO
     PRINT 1,"level","P_mid [hPa]","P_int [hPa]","Tcorr [K]","height [m]",&
-         "tau","scops","WHERE","Explanation" 
+         "tau","scops","WHERE","Explanation"
     PRINT *, ""
     WRITE(str,'(a,I2,a)') "(a,",inv_ind-1,"(I2,1x))"
     PRINT TRIM(str),"inv_layers = ",(S%inv_layers(d1,ii),ii=1,inv_ind-1)
@@ -718,7 +718,7 @@ CONTAINS
     !internal
     REAL(wp), DIMENSION(Grid%nTau,Grid%nSolzen,Grid%nRe)  :: F ! LUT,
     ! i.e. the array to be
-    ! interpolated 
+    ! interpolated
 
     INTEGER                        :: j, jj, k, kk
     INTEGER, DIMENSION(-1:2)       :: T_index
@@ -744,12 +744,12 @@ CONTAINS
     F = Grid%Albedo
 
     T_index(-1) = GZero%iTm1
-    T_index( 0) = GZero%iT0 
-    T_index( 1) = GZero%iT1 
+    T_index( 0) = GZero%iT0
+    T_index( 1) = GZero%iT1
     T_index( 2) = GZero%iTp1
     R_index(-1) = GZero%iRm1
-    R_index( 0) = GZero%iR0 
-    R_index( 1) = GZero%iR1 
+    R_index( 0) = GZero%iR0
+    R_index( 1) = GZero%iR1
     R_index( 2) = GZero%iRp1
 
     DO j = iXm1, iXp1
@@ -836,7 +836,7 @@ CONTAINS
     CHARACTER(len=1000):: sat
     INTEGER            :: lun, iostat
     REAL(wp)           :: dTau,dSolzen,dRe
-    INTEGER            :: nTau,nSolzen,nRe 
+    INTEGER            :: nTau,nSolzen,nRe
     INTEGER, PARAMETER :: lrgDim = 40 ! some large dimension length for allocating
     REAL(wp)           :: tmp_val(lrgDim)
     REAL(wp)           :: wavelength

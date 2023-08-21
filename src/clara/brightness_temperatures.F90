@@ -12,7 +12,7 @@ MODULE brightness_temperatures
   USE MOD_ICARUS,                ONLY:&
        ICARUS_SUBCOLUMN
   USE MODEL_INPUT,               ONLY: MODEL_TYPE
-  USE NAMELIST_INPUT,            ONLY: NAME_LIST 
+  USE NAMELIST_INPUT,            ONLY: NAME_LIST
   USE SIMULATOR_INPUT_VARIABLES, ONLY: SUBSET
 
   IMPLICIT NONE
@@ -69,7 +69,7 @@ CONTAINS
     REAL(wp)                              :: Tcorr(ngrids,nlev+1)
 
     PRINT *, "--- Getting corrected temperature profiles"
-    
+
     Tcorr(1:ngrids,1:nlev)   = M%T
     maxT (1:ngrids,1)        = M%T2M
     maxT (1:ngrids,2)        = M%SKT
@@ -79,7 +79,7 @@ CONTAINS
 
   SUBROUTINE GET_TB(d1,ncol,model,sub,inter,frac_out)
 
-    IMPLICIT NONE 
+    IMPLICIT NONE
 
     ! in
     INTEGER,          INTENT(in)   :: ncol,d1
@@ -94,9 +94,9 @@ CONTAINS
     nlev = model%aux%nlev
 
     inter%Tb(1:ncol) = TB_ICARUS(d1,ncol,nlev,model,sub,inter,frac_out)
-    
-    !IF (options%dbg > 1) PRINT *, '--- Finished simulated Tb' 
- 
+
+    !IF (options%dbg > 1) PRINT *, '--- Finished simulated Tb'
+
   END SUBROUTINE GET_TB
 
   FUNCTION TB_ICARUS(d1,ncol,nlev,model,sub,inter,frac_out) RESULT(Tb)
@@ -114,7 +114,7 @@ CONTAINS
 
     ! internal
     REAL(wp)                     :: frac_out2(1,ncol,nlev)
-    REAL(WP), PARAMETER          :: emsfc_lw = 0.98       ! 10.5 micron emissivity of surface (fraction) 
+    REAL(WP), PARAMETER          :: emsfc_lw = 0.98       ! 10.5 micron emissivity of surface (fraction)
     REAL(WP),DIMENSION(ncol,nlev):: demIN       ! Subcolumn emissivity
     REAL(WP)                     :: meantbclr(1)! Mean clear-sky 10.5 micron brightness temperature
     REAL(WP),DIMENSION(ncol)     :: &
@@ -129,7 +129,7 @@ CONTAINS
     boxptop  (1:ncol)        = missing
     boxttop  (1:ncol)        = missing
     meantbclr                = missing
-    levmatch (1:ncol)        = -999
+    levmatch (1:ncol)        = -9
     demIN    (1:ncol,1:nlev) = missing
 
     ! arg1=isccp_top_height, arg2=height_direction
@@ -165,4 +165,3 @@ CONTAINS
   END FUNCTION TB_ICARUS
 
 END MODULE BRIGHTNESS_TEMPERATURES
-

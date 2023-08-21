@@ -295,8 +295,8 @@ CONTAINS
 
     !local
     TYPE(model_aux)                      :: A
-    REAL(4)                              :: fvr = -999.0
-    INTEGER, PARAMETER                   :: fvi = -999
+    REAL(4)                              :: fvr = -9.0
+    INTEGER, PARAMETER                   :: fvi = -9
     LOGICAL                              :: isinteger
     INTEGER                              :: varid_rotpole,i,nchan
     CHARACTER(len=1000)                  :: units,description,long_name,&
@@ -331,128 +331,134 @@ CONTAINS
        END IF
     END IF
 
-    IF (O%sim%doRTTOV) THEN
-       WRITE(string1,'(I2)') O%sim%sensor
-       DO i = 1,nchan
-          IF (i==1) THEN
-             WRITE(string2,'(I2)') O%sim%channels(i)
-          ELSE
-             WRITE(string2,'(A,",",I2)') TRIM(string2),O%sim%channels(i)
-          END IF
-       END DO
-    END IF
+   IF (O%sim%doRTTOV) THEN
+      WRITE(string1,'(I2)') O%sim%sensor
+      DO i = 1,nchan
+         IF (i==1) THEN
+            WRITE(string2,'(I2)') O%sim%channels(i)
+         ELSE
+            WRITE(string2,'(A,",",I2)') TRIM(string2),O%sim%channels(i)
+         END IF
+      END DO
+   END IF
 
-    CALL check( nf90_redef(ncid) )
+   CALL check( nf90_redef(ncid) )
 
-    SELECT CASE (variable)
-    CASE ('areacella')
-       units = "m2"
-       WRITE(description,'(A)') ""
-       WRITE(long_name,'(A)') "Atmosphere Grid-Cell Area"
-    CASE ('block1')
-       units = ""
-       isinteger = .TRUE.
-       WRITE(description,'(A)') ""
-       WRITE(long_name,'(A)') "GRIB Definition Block1"
-    CASE ('block2')
-       units = ""
-       isinteger = .TRUE.
-       WRITE(description,'(A)') ""
-       WRITE(long_name,'(A)') "GRIB Definition Block2"
-    CASE ('dtg')
-       units = "yyyymmddhh"
-       isinteger = .TRUE.
-       WRITE(description,'(A)') "dtg"
-       WRITE(long_name,'(A)') "Verifying Datum-Time Group"
-    CASE ('lat')
-       units = "degrees_north"
-       WRITE(description,'(A)') "North of the equator"
-       WRITE(long_name,'(A)') "latitude"
-    CASE ('lon')
-       units = "degrees_east"
-       WRITE(description,'(A)') "East from Greenwich"
-       WRITE(long_name,'(A)') "longitude"
-    CASE ('lsm')
-       units =  "fraction"
-       WRITE(description,'(A)') "Grid fractional cover of land"
-       WRITE(long_name,'(A)') "Grid fractional cover of land"
-    CASE ('rlon')
-       units = "degrees"
-       description = ''
-       WRITE(long_name,'(A)') "longitude in rotated pole grid"
-    CASE ('rlat')
-       units = "degrees"
-       description = ''
-       WRITE(long_name,'(A)') "latitude in rotated pole grid"
-    CASE ('hist2d_ctp_bin_border')
-       units = "Pa"
-       WRITE(description,'(A)') "Box boundaries of the vertical profile of atmospheric &
-            &pressure, used to make CTP -tau histograms"
-       WRITE(long_name,'(A)') "Box boundaries of the vertical profile of atmospheric pressure"
-    CASE ('hist2d_cot_bin_border')
-       units = "-"
-       WRITE(description,'(A)') &
-            "optical thickness box boundaries used to make CTP -tau histograms"
-       WRITE(long_name,'(A)') "optical thickness box boundaries"
-    CASE ('hist2d_ctp_bin_centre')
-       units = "Pa"
-       WRITE(description,'(A)') "Box centres of the vertical profile of atmospheric &
-            &pressure, used to make CTP -tau histograms"
-       WRITE(long_name,'(A)') "Box centres of the vertical profile of atmospheric pressure"
-    CASE ('hist2d_cot_bin_centre')
-       units = "-"
-       WRITE(description,'(A)') &
-            "optical thickness box centres used to make CTP -tau histograms"
-       WRITE(long_name,'(A)') "optical thickness box centres"
-    CASE ('hist_phase')
-       units = "-"
-       WRITE(description,'(A)') &
-            "cloud phase dimension for hist2d_cot_ctp. 0=ice,1=liq"
-       WRITE(long_name,'(A)') "cloud phase dimension"
-    CASE ('POD_layers')
-       units = ""
-       WRITE(description,'(A)') "Probability of detection in optical depth bins"
-       WRITE(long_name,'(A)') "probability of detection"
-       valid_min=0
-       valid_max=1
-    CASE ('POD_tau_bin_centers')
-       units = ""
-       WRITE(description,'(A)') "Optical depth bin centers of bins between which POD and FAR are calculated"
-       WRITE(long_name,'(A)') "COT bin centers used for POD layers"
-       valid_min=0
-       valid_max=5
-    CASE ('POD_tau_bin_edges')
-       units = ""
-       WRITE(description,'(A)') "Optical depth bin edges between which POD and FAR are calculated"
-       WRITE(long_name,'(A)') "COT bin edges used for POD layers"
-       valid_min=0
-       valid_max=9999
-    CASE ('solzen')
-       units =  "deg"
-       WRITE(description,'(A)') "Grid Solar Zenith Angle"
-       WRITE(long_name,'(A)') "Grid Solar Zenith Angle"
-    CASE ('time_of_day')
-       units =  "hr"
-       WRITE(description,'(A)') "Overpass Time of Day"
-       WRITE(long_name,'(A)') "overpass time of day"
-    CASE ('time')
-       units = "days since 1970-01-01 00:00:00.0"
-       WRITE(description,'(A)') "time"
-       WRITE(long_name,'(A)') "time"
-       WRITE(calendar,'(A)') "standard"
-    CASE ('time_bnds')
-       units = "days since 1970-01-01 00:00:00.0"
-       WRITE(description,'(A)') "time_bnds"
-       WRITE(long_name,'(A)') "time_bnds"
+   SELECT CASE (variable)
+   CASE ('areacella')
+      units = "m2"
+      WRITE(description,'(A)') ""
+      WRITE(long_name,'(A)') "Atmosphere Grid-Cell Area"
+   CASE ('block1')
+      units = ""
+      isinteger = .TRUE.
+      WRITE(description,'(A)') ""
+      WRITE(long_name,'(A)') "GRIB Definition Block1"
+   CASE ('block2')
+      units = ""
+      isinteger = .TRUE.
+      WRITE(description,'(A)') ""
+      WRITE(long_name,'(A)') "GRIB Definition Block2"
+   CASE ('dtg')
+      units = "yyyymmddhh"
+      isinteger = .TRUE.
+      WRITE(description,'(A)') "dtg"
+      WRITE(long_name,'(A)') "Verifying Datum-Time Group"
+   CASE ('FAR')
+      units = ""
+      WRITE(description,'(A)') "False Alarm Rate"
+      WRITE(long_name,'(A)') "The false alarm rate as determined from statistical comparison between CDR and CALIOP"
+      valid_min=0
+      valid_max=1
+   CASE ('lat')
+      units = "degrees_north"
+      WRITE(description,'(A)') "North of the equator"
+      WRITE(long_name,'(A)') "latitude"
+   CASE ('lon')
+      units = "degrees_east"
+      WRITE(description,'(A)') "East from Greenwich"
+      WRITE(long_name,'(A)') "longitude"
+   CASE ('lsm')
+      units =  "fraction"
+      WRITE(description,'(A)') "Grid fractional cover of land"
+      WRITE(long_name,'(A)') "Grid fractional cover of land"
+   CASE ('rlon')
+      units = "degrees"
+      description = ''
+      WRITE(long_name,'(A)') "longitude in rotated pole grid"
+   CASE ('rlat')
+      units = "degrees"
+      description = ''
+      WRITE(long_name,'(A)') "latitude in rotated pole grid"
+   CASE ('hist2d_ctp_bin_border')
+      units = "Pa"
+      WRITE(description,'(A)') "Box boundaries of the vertical profile of atmospheric &
+         &pressure, used to make CTP -tau histograms"
+      WRITE(long_name,'(A)') "Box boundaries of the vertical profile of atmospheric pressure"
+   CASE ('hist2d_cot_bin_border')
+      units = "-"
+      WRITE(description,'(A)') &
+         "optical thickness box boundaries used to make CTP -tau histograms"
+      WRITE(long_name,'(A)') "optical thickness box boundaries"
+   CASE ('hist2d_ctp_bin_centre')
+      units = "Pa"
+      WRITE(description,'(A)') "Box centres of the vertical profile of atmospheric &
+         &pressure, used to make CTP -tau histograms"
+      WRITE(long_name,'(A)') "Box centres of the vertical profile of atmospheric pressure"
+   CASE ('hist2d_cot_bin_centre')
+      units = "-"
+      WRITE(description,'(A)') &
+         "optical thickness box centres used to make CTP -tau histograms"
+      WRITE(long_name,'(A)') "optical thickness box centres"
+   CASE ('hist_phase')
+      units = "-"
+      WRITE(description,'(A)') &
+         "cloud phase dimension for hist2d_cot_ctp. 0=ice,1=liq"
+      WRITE(long_name,'(A)') "cloud phase dimension"
+   CASE ('POD_layers')
+      units = ""
+      WRITE(description,'(A)') "Probability of detection in optical depth bins"
+      WRITE(long_name,'(A)') "probability of detection"
+      valid_min=0
+      valid_max=1
+   CASE ('POD_tau_bin_centers')
+      units = ""
+      WRITE(description,'(A)') "Optical depth bin centers of bins between which POD and FAR are calculated"
+      WRITE(long_name,'(A)') "COT bin centers used for POD layers"
+      valid_min=0
+      valid_max=5
+   CASE ('POD_tau_bin_edges')
+      units = ""
+      WRITE(description,'(A)') "Optical depth bin edges between which POD and FAR are calculated"
+      WRITE(long_name,'(A)') "COT bin edges used for POD layers"
+      valid_min=0
+      valid_max=9999
+   CASE ('solzen')
+      units =  "deg"
+      WRITE(description,'(A)') "Grid Solar Zenith Angle"
+      WRITE(long_name,'(A)') "Grid Solar Zenith Angle"
+   CASE ('time_of_day')
+      units =  "hr"
+      WRITE(description,'(A)') "Overpass Time of Day"
+      WRITE(long_name,'(A)') "overpass time of day"
+   CASE ('time')
+      units = "days since 1970-01-01 00:00:00.0"
+      WRITE(description,'(A)') "time"
+      WRITE(long_name,'(A)') "time"
+      WRITE(calendar,'(A)') "standard"
+   CASE ('time_bnds')
+      units = "days since 1970-01-01 00:00:00.0"
+      WRITE(description,'(A)') "time_bnds"
+      WRITE(long_name,'(A)') "time_bnds"
 
-       !
-       ! AUXILIARY
-       ! ------
+   !
+   ! AUXILIARY
+   ! ------
 
-       ! -------------------------------
-       ! SIMULATED VARIABLES
-       !
-    CASE ('albedo')
+   ! -------------------------------
+   ! SIMULATED VARIABLES
+   !
+   CASE ('albedo')
        units='fraction'
        WRITE(description,'(A)') "simulated cloudy albedo"
        WRITE(long_name,'(A)') "simulated cloudy albedo during daytime"
@@ -831,8 +837,8 @@ CONTAINS
     REAL(wp) :: dcl                         ! declination
     REAL(wp) :: LST(ngrids)
 
-    LST                          = -999._wp
-    solar_zenith_angle(1:ngrids) = -999._wp
+    LST                          = -9._wp
+    solar_zenith_angle(1:ngrids) = -9._wp
 
     ! ----------------
     ! EQUATION OF TIME
@@ -1038,8 +1044,6 @@ CONTAINS
 
     ! Relaxation for clouds in the tropopause region
     REAL(wp), PARAMETER :: MaximumTropopausePressure = 50000 ![Pa]
-    REAL(wp), PARAMETER :: MinimumTropopausePressure = 5000  ![Pa]
-
     INTEGER, DIMENSION(ngrids) :: invInd, trop_lev,tropopause_count
     REAL(wp),DIMENSION(ngrids) :: inversion_pressure
     LOGICAL, DIMENSION(ngrids,nlev) :: previousNotInversion
@@ -1051,7 +1055,7 @@ CONTAINS
     PRINT *, "--- Finding temperature inversions"
 
     trop_lev                    = 1 ! put at the top if no tropopause is found
-    inversion_pressure          = -999._wp
+    inversion_pressure          = -9._wp
     inversions(1:ngrids,1:nlev) = 0
     clara_tropopauseThickness   = MAX(2,nlev/30)
     invInd = 0
@@ -1145,7 +1149,7 @@ CONTAINS
     LOGICAL  :: model_lat_descend,data_lat_descend,model_lon_180,data_lon_180
     LOGICAL  :: loncond1,loncond2,latcond1,latcond2,workOnLat,workOnLon
     REAL(wp), PARAMETER :: BigNum= 999._wp
-    REAL(wp), PARAMETER :: fill  =-999._wp
+    REAL(wp), PARAMETER :: fill  =-9._wp
     INTEGER             :: i
     INTEGER             :: ind(1)
     LOGICAL             :: dim2
