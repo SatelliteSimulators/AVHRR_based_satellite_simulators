@@ -4,9 +4,9 @@
 # e.g., $NETCDF_DIR = /software/apps/netcdf/4.3.2/i1402-hdf5-1.8.14
 #
 # Use debug by e.g., make clara DEBUG=w
- 
-NETCDF_INC = -I$(NETCDF_DIR)/include 
-NETCDF_LIB = -L$(NETCDF_DIR)/lib -lnetcdf -lnetcdff 
+
+NETCDF_INC = -I$(NETCDF_DIR)/include
+NETCDF_LIB = -L$(NETCDF_DIR)/lib -lnetcdf -lnetcdff
 
 ifeq ($(ARCH),gfortran)
      MOD=-Jmod/

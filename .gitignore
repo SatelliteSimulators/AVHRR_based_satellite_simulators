@@ -2,4 +2,6 @@ obj/
 mod/
 src/.vscode/settings.json
 *.err
-NAMELIST_*
+NAMELIST*
+CONFIG*
+gmt.history
