@@ -91,8 +91,8 @@ CONTAINS
     tmpctp = ctp
 
     ! ptau for ice clouds only
-    tmptau=MERGE(tmptau,-999._wp,cph.EQ.2)
-    tmpctp=MERGE(tmpctp,-999._wp,cph.EQ.2)
+    tmptau=MERGE(tmptau,-9._wp,cph.EQ.2)
+    tmpctp=MERGE(tmpctp,-9._wp,cph.EQ.2)
 
     tmpptau = 0
     CALL HIST2D(tmptau,tmpctp,nc,&
@@ -107,8 +107,8 @@ CONTAINS
     tmpptau = 0
 
     ! ptau for liquid clouds only
-    tmptau=MERGE(tmptau,-999._wp,cph.EQ.1)
-    tmpctp=MERGE(tmpctp,-999._wp,cph.EQ.1)
+    tmptau=MERGE(tmptau,-9._wp,cph.EQ.1)
+    tmpctp=MERGE(tmpctp,-9._wp,cph.EQ.1)
     CALL HIST2D(tmptau,tmpctp,nc,&
             options%ctp_tau%tbin_edges,n_tbins,&
             options%ctp_tau%pbin_edges,n_pbins,&
@@ -366,88 +366,130 @@ CONTAINS
 
   END FUNCTION CLOUD_EFFECTIVE_RADIUS_NATIVE
 
-  FUNCTION GET_CLOUDTYPE(d1,nc,inter,options,sunlit) RESULT(cflag)
+FUNCTION GET_CLOUDTYPE(d1,nc,inter,options,sunlit) RESULT(cflag)
 
-    ! Make a variable that saves the cloud type based purely on optical depth
-    !
-    ! Salomon.Eliasson@smhi.se
+     ! Make a variable that saves the cloud type based purely on optical depth
+     !
+     ! CFmethod = 0 means global tau-limit
+     ! CFmethod = 1 means using latlon-gridded PODs together with tau
+     ! CFmethid = 2 means using latlon-gridded PODs and FAR together with tau
+     !
+     ! Salomon.Eliasson@smhi.se
 
-    IMPLICIT NONE
+     IMPLICIT NONE
 
-    INTEGER, INTENT(in)          :: d1,nc
-    TYPE(internal), INTENT(in)   :: inter
-    TYPE(name_list), INTENT(in)  :: options
-    INTEGER, INTENT(in)          :: sunlit
+     INTEGER, INTENT(in)          :: d1,nc
+     TYPE(internal), INTENT(in)   :: inter
+     TYPE(name_list), INTENT(in)  :: options
+     INTEGER, INTENT(in)          :: sunlit
 
-    ! OUT
-    integer :: cflag(nc)
+     ! OUT
+     INTEGER :: cflag(nc)
 
-    ! internal
-    REAL(wp)                      :: tau_min
-    REAL(wp)                      :: opaque,ClFree
-    INTEGER                       :: lvl
+     ! internal
+     REAL(wp)                      :: tau_min
+     REAL(wp)                      :: opaque,ClFree
 
-    ClFree=0._wp
-    opaque  = 4._wp ! approximate limit for accurate CALIPSO optical depth retrievals
-    !opaque  = 0.4_wp ! Limit used in Atrain-match and Karlsson et al., 2023
-    !---------
-    ! CLOUD TYPE
-    !
-    ! clear=0, sub-visible=1, semi-transparent=2, opaque=3
+     ClFree=0._wp
+     opaque  = 4._wp ! approximate limit for accurate CALIPSO optical depth retrievals
+     !opaque  = 0.4_wp ! Limit used in Atrain-match and Karlsson et al., 2023
+     !---------
+     ! CLOUD TYPE
+     !
+     ! clear=0, sub-visible=1, semi-transparent=2, opaque=3
 
-    SELECT CASE(options%cloudMicrophys%cf_method)
-    CASE(0)
-       tau_min = options%cloudMicrophys%tau_min
+     SELECT CASE(options%cloudMicrophys%cf_method)
+     CASE(0)
+          tau_min = options%cloudMicrophys%tau_min
 
-       WHERE(inter%tau(1:nc).LE.ClFree)
-          cflag(1:nc) = 0 ! cloud free
-       ELSEWHERE((inter%tau(1:nc).GT.ClFree).AND.(inter%tau(1:nc).LT.tau_min))
-          cflag(1:nc) = 1 ! sub-visible
-       ELSEWHERE((inter%tau(1:nc).GE.tau_min).AND.(inter%tau(1:nc).LT.opaque))
-          cflag(1:nc) = 2 ! semi-transparent
-       ELSEWHERE(inter%tau(1:nc).GE.opaque)
-          cflag(1:nc) = 3 ! opaque
-       END WHERE
+          WHERE(inter%tau(1:nc).LE.ClFree)
+               cflag(1:nc) = 0 ! cloud free
+          ELSEWHERE((inter%tau(1:nc).GT.ClFree).AND.(inter%tau(1:nc).LT.tau_min))
+               cflag(1:nc) = 1 ! sub-visible
+          ELSEWHERE((inter%tau(1:nc).GE.tau_min).AND.(inter%tau(1:nc).LT.opaque))
+               cflag(1:nc) = 2 ! semi-transparent
+          ELSEWHERE(inter%tau(1:nc).GE.opaque)
+               cflag(1:nc) = 3 ! opaque
+          END WHERE
 
-    CASE(1)
+     CASE(1)
 
-       ! Combine the information on the probability of detection for a
-       ! geographical location and for a optical depth
-       ! interval. Mostly, the POD is higher the higher the optical
-       ! depth. The column is considered cloudy if a random number, x,
-       ! assigned to the (lon,lat,column) before the simulation is
-       ! higher than x>(1-POD). I.e., the higher the POD the more
-       ! likely this cloud is classified as cloudy. The POD is provided
-       ! based on comprehensive comparisons between the satellite
-       ! dataset and Calipso data which is tightly collocated with the
-       ! data (Karlsson & Håkansson 2018)
+          cflag = USE_POD_TO_DETERMINE_CFC(d1, nc, options, inter, sunlit, opaque)
 
-       ! Cycle through the optical depth bins to find the POD to
-       ! assume, singel out the columns that fall into that optical
-       ! depth bin, and compare their predetermined random number to
-       ! the reciprocal of the POD
+     CASE(2)
+          cflag = USE_POD_TO_DETERMINE_CFC(d1, nc, options, inter, sunlit, opaque)
+          ! CORRECT_CFLAG_WITH_FAR
+          !                   False Alarm Rate
+          ! Combine the information on the false alarm rate for a geographical location. False alarm rate means that,
+          ! in the observations, a cloudy pixel is wrongly classified as cloudy. This means, for consistency with the observational
+          ! dataset, the simulator should also reclassify a portion of the cloud free subcolumns as cloudy.
+          ! The column is considered cloudy if a random number, x, assigned to the (lon,lat,column) before the simulation, is
+          ! LOWER than FAR. I.e., the higher the FAR the more likely a cloud free is re-classified as cloudy. These reclassified
+          ! pixels will be further regarded as cloudy, but cannot be included in the calculation of other products such as
+          ! cloud water path and cloud top height. The FAR is provided based on comprehensive comparisons between the satellite
+          ! dataset and Calipso data which is tightly collocated with the data (Karlsson & Håkansson 2018).
+          ! - FAR does not depend on optical depth
+          ! - cflag = 4, means "reclassified cloud free pixel due to FAR"
+          WHERE (cflag == 0)
+               cflag(1:nc) = MERGE( 4, cflag, &
+                                   options%sim_aux%random_numbers(sunlit+1,d1,1:nc).LT.&
+                                   SPREAD(options%sim_aux%FAR(d1,sunlit+1),1,nc))
+          ENDWHERE
 
-       DO lvl=1,SIZE(options%sim_aux%POD_tau_bin_edges)-1
+     END SELECT
+
+  END FUNCTION GET_CLOUDTYPE
+
+FUNCTION USE_POD_TO_DETERMINE_CFC(d1, nc, options, inter, sunlit, opaque) RESULT(cflag)
+
+     ! Combine the information on the probability of detection for a
+     ! geographical location and for a optical depth
+     ! interval. Mostly, the POD is higher the higher the optical
+     ! depth. The column is considered cloudy if a random number, x,
+     ! assigned to the (lon,lat,column) before the simulation is
+     ! higher than x>(1-POD). I.e., the higher the POD the more
+     ! likely this cloud is classified as cloudy. The POD is provided
+     ! based on comprehensive comparisons between the satellite
+     ! dataset and Calipso data which is tightly collocated with the
+     ! data (Karlsson & Håkansson 2018)
+
+     ! Cycle through the optical depth bins to find the POD to
+     ! assume, singel out the columns that fall into that optical
+     ! depth bin, and compare their predetermined random number to
+     ! the reciprocal of the POD
+
+     INTEGER, INTENT(in)           :: d1,nc
+     TYPE(internal), INTENT(in)    :: inter
+     TYPE(name_list), INTENT(in)   :: options
+     INTEGER, INTENT(in)           :: sunlit
+
+     ! OUT
+     INTEGER                       :: cflag(nc)
+
+     ! internal
+     REAL(wp)                      :: opaque
+     INTEGER                       :: lvl
+
+     DO lvl=1,SIZE(options%sim_aux%POD_tau_bin_edges)-1
           WHERE(inter%tau(1:nc).GT.options%sim_aux%POD_tau_bin_edges(lvl)&
                & .AND.inter%tau.LE.options%sim_aux%POD_tau_bin_edges(lvl+1))
 
-             cflag(1:nc)=MERGE(3,0,&
+               cflag(1:nc)=MERGE(3,0,&
                   options%sim_aux%random_numbers(sunlit+1,d1,1:nc).GE.&
                   (1-SPREAD(options%sim_aux%POD_layers(d1,lvl,sunlit+1),1,nc)))
           END WHERE
-       END DO
-       ! reclassify the cloudy columns to semi-transparent if the optical
-       ! depth is less than opaque (I should be using RTTOV channel
-       ! differences for CLARA)
+     END DO
+     ! reclassify the cloudy columns to semi-transparent if the optical
+     ! depth is less than opaque (I should be using RTTOV channel
+     ! differences for CLARA)
 
-       WHERE(inter%tau(1:nc).EQ.0)
+     WHERE(inter%tau(1:nc).EQ.0)
           cflag(1:nc)=0
-       END WHERE
-       WHERE((cflag(1:nc).EQ.3).AND.(inter%tau(1:nc).LT.opaque))
+     END WHERE
+     WHERE((cflag(1:nc).EQ.3).AND.(inter%tau(1:nc).LT.opaque))
           cflag(1:nc)=2
-       END WHERE
-    END SELECT
+     END WHERE
+END FUNCTION
 
-  END FUNCTION GET_CLOUDTYPE
 
 END MODULE SIMULATE_CLOUD_MICROPHYS

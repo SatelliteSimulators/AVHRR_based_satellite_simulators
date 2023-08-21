@@ -92,6 +92,7 @@ MODULE optics_m
      REAL(wp), ALLOCATABLE :: POD_tau_bin_edges  (:)
      REAL(wp), ALLOCATABLE :: POD_tau_bin_centers(:)
      REAL(wp), ALLOCATABLE :: random_numbers     (:,:,:)
+     REAL(wp), ALLOCATABLE :: FAR                (:,:)
   END TYPE simulator_aux
   !
   ! ------
@@ -150,7 +151,7 @@ CONTAINS
    CASE('clara-a2')
       IF (phase.EQ.1) re%nRe = 8
       IF (phase.EQ.2) re%nRe = 9
-   CASE('clara-a3')
+   CASE('clara-a3','claas-3')
       IF (phase.EQ.1) re%nRe = 8
       IF (phase.EQ.2) re%nRe = 11
    CASE('cloud_cci')
@@ -204,7 +205,7 @@ CONTAINS
          END IF
       END IF
 
-   CASE('clara-a3')
+   CASE('clara-a3','claas-3')
 
       ! For liquid, small means less than 10 microns, large is greater
       IF (phase.EQ.1) THEN! liquid

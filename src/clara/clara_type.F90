@@ -89,6 +89,7 @@ CONTAINS
     CALL namelist_microphys(x,file)
     CALL variables_clara   (x,file)
 
+    X%sim%doClaas     = .FALSE.
     X%sim%doClara     = .TRUE.
     X%sim%doCloud_cci = .FALSE.
     X%sim%doISCCP     = .FALSE.
@@ -239,7 +240,7 @@ CONTAINS
              IN%ref_ice (ngrids),&
              IN%ref_liq (ngrids),&
              IN%tau     (ngrids))
-         ALLOCATE(IN%cflag_tot(ngrids,4))
+         ALLOCATE(IN%cflag_tot(ngrids,5))
          ALLOCATE(IN%hist2d_cot_ctp(ngrids,n_tbins,n_pbins,2))
 
   END SUBROUTINE ALLOCATE_CLARA_SIM
@@ -256,7 +257,7 @@ CONTAINS
     n_tbins = options%ctp_tau%n_tbins
     n_pbins = options%ctp_tau%n_pbins
 
-    CALL INITIALISE_CLARA_SIM(clara%av,ngrids,-999._wp,n_pbins,n_tbins)
+    CALL INITIALISE_CLARA_SIM(clara%av,ngrids,-9._wp,n_pbins,n_tbins)
 
     IF (ALLOCATED(clara%sum%ctp)) THEN
        CALL INITIALISE_CLARA_SIM(clara%sum,ngrids,0._wp,n_pbins,n_tbins)
@@ -294,7 +295,7 @@ CONTAINS
     IN%ref_liq  (1:ngrids) = fill
     IN%tau      (1:ngrids) = fill
 
-    IN%cflag_tot(1:ngrids,1:4) = 0
+    IN%cflag_tot(1:ngrids,1:5) = 0
     IF (ALLOCATED(IN%hist2d_cot_ctp)) &
          IN%hist2d_cot_ctp(1:ngrids,1:n_tbins,1:n_pbins,1:2) = 0._wp
 
