@@ -49,6 +49,7 @@ p_simple_simulator = src/shared/simple_simulator.F90
 p_calc_from_model = src/shared/calc_from_model.F90
 p_simulate_cloud_microphys = src/shared/simulate_cloud_microphys.F90
 
+
 ##############################
 # CLOUD_CCI
 ##############################
@@ -138,36 +139,78 @@ CLARA=\
 	obj/clara_netcdf.o\
 	obj/clara.o\
 
+##############################
+# CLAAS
+##############################
 
-.PHONY: cloud_cci.x clara.x
+p_claas_functions = src/claas/claas_functions.F90
+p_claas_netcdf = src/claas/claas_netcdf.F90
+p_claas_type = src/claas/claas_type.F90
+p_claas = src/claas/claas.F90
+
+CLAAS=\
+	obj/cosp_kinds.o\
+	obj/handy.o\
+	obj/my_maths.o\
+	obj/optics.o\
+	obj/namelist_input.o\
+	obj/internal_simulator.o\
+	obj/my_netcdfTools.o\
+	obj/model_input.o\
+	obj/simulator_variables.o\
+	obj/simulator_input_variables.o\
+	obj/data_check.o\
+	obj/cosp_constants.o\
+	obj/auxiliary_functions.o\
+	obj/claas_type.o\
+	obj/cosp_config.o\
+	obj/cosp_stats.o\
+	obj/from_COSP2.o\
+	obj/simulate_cloud_microphys.o\
+	obj/mo_rng.o\
+	obj/cosp_errorHandling.o\
+	obj/scops.o\
+	obj/subcolumns.o\
+	obj/calc_from_model.o\
+	obj/simple_simulator.o\
+	obj/claas_functions.o\
+	obj/claas_netcdf.o\
+	obj/claas.o\
+
+.PHONY: cloud_cci.x clara.x claas.x
 
 clara:  $(CLARA)
 	$(COMPILE) $(CLARA) -o clara.x $(NETCDF_LIB)
 	@ echo " --- Finished compiling clara!"
+
 cloud_cci:$(CLOUD_CCI)
 	$(COMPILE) $(CLOUD_CCI) -o cloud_cci.x $(NETCDF_LIB)
 	@ echo " --- Finished compiling cloud_cci!"
 
+claas:  $(CLAAS)
+	$(COMPILE) $(CLAAS) -o claas.x $(NETCDF_LIB)
+	@ echo " --- Finished compiling claas!"
+
 # COSP
-obj/cosp_kinds.o: $(p_cosp_kinds) 
+obj/cosp_kinds.o: $(p_cosp_kinds)
 	$(COMPILE) -c -o obj/cosp_kinds.o $(p_cosp_kinds)
-obj/from_COSP2.o: $(p_from_COSP2) 
+obj/from_COSP2.o: $(p_from_COSP2)
 	$(COMPILE) -c -o obj/from_COSP2.o $(p_from_COSP2)
-obj/cosp_constants.o: $(p_cosp_constants) 
+obj/cosp_constants.o: $(p_cosp_constants)
 	$(COMPILE) -c -o obj/cosp_constants.o $(p_cosp_constants)
-obj/mo_rng.o: $(p_mo_rng) 
+obj/mo_rng.o: $(p_mo_rng)
 	$(COMPILE) -c -o obj/mo_rng.o $(p_mo_rng)
-obj/cosp_errorHandling.o: $(p_cosp_errorHandling) 
+obj/cosp_errorHandling.o: $(p_cosp_errorHandling)
 	$(COMPILE) -c -o obj/cosp_errorHandling.o $(p_cosp_errorHandling)
-obj/scops.o: $(p_scops) 
+obj/scops.o: $(p_scops)
 	$(COMPILE) -c -o obj/scops.o $(p_scops)
-obj/cosp_config.o: $(p_cosp_config) 
+obj/cosp_config.o: $(p_cosp_config)
 	$(COMPILE) -c -o obj/cosp_config.o $(p_cosp_config)
-obj/cosp_stats.o: $(p_cosp_stats) 
+obj/cosp_stats.o: $(p_cosp_stats)
 	$(COMPILE) -c -o obj/cosp_stats.o $(p_cosp_stats)
-obj/icarus.o: $(p_icarus) 
+obj/icarus.o: $(p_icarus)
 	$(COMPILE) -c -o obj/icarus.o $(p_icarus)
-obj/cosp_isccp_interface.o: $(p_cosp_isccp_interface) 
+obj/cosp_isccp_interface.o: $(p_cosp_isccp_interface)
 	$(COMPILE) -c -o obj/cosp_isccp_interface.o $(p_cosp_isccp_interface)
 
 #TYPES
@@ -175,7 +218,7 @@ obj/namelist_input.o: $(p_namelist_input)
 	$(COMPILE) -c -o obj/namelist_input.o $(p_namelist_input)
 obj/model_input.o: $(p_model_input)
 	$(COMPILE) $(NETCDF_INC) -c -o obj/model_input.o $(p_model_input)
-obj/internal_simulator.o: $(p_internal_simulator) 
+obj/internal_simulator.o: $(p_internal_simulator)
 	$(COMPILE) -c -o obj/internal_simulator.o $(p_internal_simulator)
 obj/satellite_specs.o: $(p_satellite_specs)
 	$(COMPILE) $(NETCDF_INC) -c -o obj/satellite_specs.o $(p_satellite_specs)
@@ -183,7 +226,7 @@ obj/simulator_input_variables.o: $(p_simulator_input_variables)
 	$(COMPILE) -c -o obj/simulator_input_variables.o $(p_simulator_input_variables)
 obj/simulator_variables.o: $(p_simulator_variables)
 	$(COMPILE) -c -o obj/simulator_variables.o $(p_simulator_variables)
-obj/optics.o: $(p_optics) 
+obj/optics.o: $(p_optics)
 	$(COMPILE) -c -o obj/optics.o $(p_optics)
 
 # SHARED TOOLS
@@ -225,7 +268,7 @@ obj/clara.o: $(p_clara)
 	$(COMPILE) -c -o obj/clara.o $(p_clara)
 
 # CLOUD_CCI
-obj/cloud_cci_type.o: $(p_cloud_cci_type) 
+obj/cloud_cci_type.o: $(p_cloud_cci_type)
 	$(COMPILE) -c -o obj/cloud_cci_type.o $(p_cloud_cci_type)
 obj/Bcucof.o: $(p_Bcucof)
 	$(COMPILE) -c -o obj/Bcucof.o $(p_Bcucof)
@@ -240,10 +283,20 @@ obj/cloud_cci_netcdf.o: $(p_cloud_cci_netcdf)
 obj/cloud_cci.o: $(p_cloud_cci)
 	$(COMPILE) -c -o obj/cloud_cci.o $(p_cloud_cci)
 
+# CLAAS
+obj/claas_type.o: $(p_claas_type)
+	$(COMPILE) -c -o obj/claas_type.o $(p_claas_type)
+obj/claas_functions.o: $(p_claas_functions)
+	$(COMPILE) -c -o obj/claas_functions.o $(p_claas_functions)
+obj/claas_netcdf.o: $(p_claas_netcdf)
+	$(COMPILE) $(NETCDF_INC) -c -o obj/claas_netcdf.o $(p_claas_netcdf)
+obj/claas.o: $(p_claas)
+	$(COMPILE) -c -o obj/claas.o $(p_claas)
+
 clean:
 	rm -rf mod/* obj/* *.x *~ *\#
 #
-all: clara cloud_cci
+all: clara cloud_cci claas
 
 install:
 	cp -f *.x ${INSTALL_DIR}/

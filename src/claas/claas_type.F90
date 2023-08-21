@@ -43,6 +43,7 @@ MODULE CLAAS_M
      REAL(wp), ALLOCATABLE :: cfc_low       (:)
      REAL(wp), ALLOCATABLE :: cfc_mid       (:)
      REAL(wp), ALLOCATABLE :: cfc_high      (:)
+     INTEGER,  ALLOCATABLE :: cflag_tot     (:,:)
      REAL(wp), ALLOCATABLE :: cot_ice       (:)
      REAL(wp), ALLOCATABLE :: cot_liq       (:)
      REAL(wp), ALLOCATABLE :: cth           (:)
@@ -87,7 +88,7 @@ CONTAINS
     CALL namelist_microphys(x,file)
     CALL variables_claas   (x,file)
 
-    X%sim%doClass     = .TRUE.
+    X%sim%doClaas     = .TRUE.
     X%sim%doClara     = .FALSE.
     X%sim%doCloud_cci = .FALSE.
     X%sim%doISCCP     = .FALSE.
@@ -104,11 +105,6 @@ CONTAINS
     TYPE(name_list), INTENT(inout):: options
     TYPE(model_aux),  INTENT(in)  :: aux
     INTEGER                       :: ngrids,n_tbins,n_pbins,ncol
-    REAL(wp), ALLOCATABLE         :: tmp3(:,:,:)
-    INTEGER                       :: len
-    CHARACTER(1000)               :: filename
-    CHARACTER(100)                :: varstr
-    CHARACTER(10)                 :: season
     LOGICAL                       :: need2Average
 
     need2Average = .TRUE.
@@ -119,73 +115,15 @@ CONTAINS
     ncol    = options%ncols
 
     CALL ALLOCATE_CLAAS_SIM(claas%av,options,ngrids,n_pbins,n_tbins)
+    CALL ALLOCATE_CLAAS_SIM(claas%sum,options,ngrids,n_pbins,n_tbins)
 
-    IF (need2Average) THEN
-       CALL ALLOCATE_CLAAS_SIM(claas%sum,options,ngrids,n_pbins,n_tbins)
+    ALLOCATE (claas%numel%grd  (ngrids),&
+          claas%numel%cld  (ngrids),&
+          claas%numel%icld (ngrids),&
+          claas%numel%lcld (ngrids),&
+          claas%numel%day  (ngrids))
 
-       ALLOCATE (claas%numel%grd  (ngrids),&
-            claas%numel%cld  (ngrids),&
-            claas%numel%icld (ngrids),&
-            claas%numel%lcld (ngrids),&
-            claas%numel%day  (ngrids))
-
-    END IF
-
-    WRITE(filename, '(A,A,A)') &
-         'data/microphysics/claas/cloud_properties/cloud_mask_limits_',&
-         TRIM(options%CDR),'.nc'
-
-    ! THIS NEEDS TO BE HERE BECAUSE IT IS ONLY FOR claas SO FAR
-    SELECT CASE (options%cloudMicrophys%cf_method)
-
-    CASE(1) ! We now only deal with POD
-
-       ! claas-3: Based on half-yearly statistics
-       !           separated for day and night based on matchups
-       !           between noaa18 and noaa19 and CALIPSO (5km collocated)
-       CALL AUX_DATA(filename,'COT_edges',strDim1='COT_edges',&
-            data1D=options%sim_aux%POD_tau_bin_edges,dbg=options%dbg)
-
-       ! Making the last box also valid for all clouds greater than tau=5
-       options%sim_aux%POD_tau_bin_edges(SIZE(options%sim_aux%POD_tau_bin_edges))=9999._wp
-
-       CALL AUX_DATA(filename,'COT_centers',strDim1='COT_centers',&
-            data1D=options%sim_aux%POD_tau_bin_centers,nX=len,dbg=options%dbg)
-
-       ALLOCATE (options%sim_aux%POD_layers (ngrids,len,2))
-
-       ! Årstiden summer är här definierat som april till september
-       ! och winter oktober till mars.
-
-     IF (options%epoch%month.GE.4 .AND. options%epoch%month.LE.9) THEN
-          season='NHsummer'
-     ELSE
-          season='NHwinter'
-     END IF
-
-       WRITE (*,'(5(A,x))') &
-            " --- Getting POD values based on",TRIM(season),"season for ",TRIM(options%CDR),"CDR"
-
-       ! NIGHT values
-       WRITE(varstr,'(A,A)') 'POD_NIGHT_',season
-       CALL AUX_DATA(filename,TRIM(varstr),'lon','lat',strDim3='COT_centers',&
-            data3D=tmp3,conform2model=.TRUE.,aux=aux,dbg=options%dbg)
-
-       options%sim_aux%POD_layers(:,:,1) = RESHAPE(tmp3,(/ngrids,len/))
-
-       ! Day values
-       WRITE(varstr,'(A,A)') 'POD_DAY_',season
-       CALL AUX_DATA(filename,TRIM(varstr),'lon','lat',strDim3='COT_centers',&
-            data3D=tmp3,conform2model=.TRUE.,aux=aux,dbg=options%dbg)
-
-       options%sim_aux%POD_layers(:,:,2) = RESHAPE(tmp3,(/ngrids,len/))
-
-       DEALLOCATE(tmp3)
-
-       ! Get the random numbers I need (sunlit,:,:)
-       ALLOCATE (options%sim_aux%random_numbers(2,ngrids,ncol))
-       CALL RANDOM_NUMBER(harvest = options%sim_aux%random_numbers)
-    END SELECT
+    CALL get_POD_FAR(options, aux)
 
     ALLOCATE( &
          options%sim_aux%LUT%ice%optics%g0  (num_trial_res), &
@@ -228,8 +166,8 @@ CONTAINS
              IN%ref_ice (ngrids),&
              IN%ref_liq (ngrids),&
              IN%tau     (ngrids))
-         ALLOCATE(IN%cflag_tot(ngrids,4))
-         ALLOCATE(IN%hist2d_cot_ctp(ngrids,n_tbins,n_pbins,2))
+     ALLOCATE(IN%hist2d_cot_ctp(ngrids,n_tbins,n_pbins,2))
+     ALLOCATE(IN%cflag_tot(ngrids,5))
 
   END SUBROUTINE ALLOCATE_claas_SIM
 
@@ -245,7 +183,7 @@ CONTAINS
     n_tbins = options%ctp_tau%n_tbins
     n_pbins = options%ctp_tau%n_pbins
 
-    CALL INITIALISE_claas_SIM(claas%av,ngrids,-999._wp,n_pbins,n_tbins)
+    CALL INITIALISE_claas_SIM(claas%av,ngrids,-9._wp,n_pbins,n_tbins)
 
     IF (ALLOCATED(claas%sum%ctp)) THEN
        CALL INITIALISE_claas_SIM(claas%sum,ngrids,0._wp,n_pbins,n_tbins)
@@ -282,10 +220,8 @@ CONTAINS
     IN%ref_ice  (1:ngrids) = fill
     IN%ref_liq  (1:ngrids) = fill
     IN%tau      (1:ngrids) = fill
-
-    IN%cflag_tot(1:ngrids,1:4) = 0
-    IF (ALLOCATED(IN%hist2d_cot_ctp)) &
-         IN%hist2d_cot_ctp(1:ngrids,1:n_tbins,1:n_pbins,1:2) = 0._wp
+    IN%cflag_tot(1:ngrids,1:5) = 0
+    IN%hist2d_cot_ctp(1:ngrids,1:n_tbins,1:n_pbins,1:2) = 0._wp
 
   END SUBROUTINE INITIALISE_claas_SIM
 
@@ -336,8 +272,8 @@ CONTAINS
                IN%ref_ice       ,&
                IN%ref_liq       ,&
                IN%tau           )
-     DEALLOCATE(IN%cflag_tot)
-    IF (ALLOCATED(IN%hist2d_cot_ctp)) DEALLOCATE(IN%hist2d_cot_ctp)
+    DEALLOCATE(IN%cflag_tot)
+    DEALLOCATE(IN%hist2d_cot_ctp)
   END SUBROUTINE DEALLOCATE_claas_SIM
 
   SUBROUTINE VARIABLES_claas(x,file)
@@ -383,4 +319,105 @@ CONTAINS
     x%vars%ref_liq        = ref_liq
 
   END SUBROUTINE VARIABLES_claas
+
+  SUBROUTINE get_POD_FAR(options, aux)
+
+     IMPLICIT NONE
+
+     TYPE(name_list),  INTENT(inout):: options
+     TYPE(model_aux),  INTENT(in)  :: aux
+     REAL(wp), ALLOCATABLE         :: tmp3(:,:,:)
+     REAL(wp), ALLOCATABLE         :: tmp2(:,:)
+     INTEGER                       :: len
+     CHARACTER(1000)               :: filename
+     CHARACTER(100)                :: varstr
+     CHARACTER(10)                 :: season
+     INTEGER                       :: ngrids,ncol
+
+     ngrids  = aux%ngrids
+     ncol    = options%ncols
+     WRITE(filename, '(A,A,A)') &
+          'data/microphysics/CLAAS/cloud_properties/cloud_mask_limits_',&
+          TRIM(options%CDR),'.nc'
+
+     IF (options%epoch%month.GE.4 .AND. options%epoch%month.LE.9) THEN
+          season='NHsummer'
+     ELSE
+          season='NHwinter'
+     END IF
+
+     !--------------------------------------
+     ! POD
+     !
+     ! claas-3: Based on half-yearly statistics
+     !           separated for day and night based on matchups
+     !           between noaa18 and noaa19 and CALIPSO (5km collocated)
+     CALL AUX_DATA(filename,'COT_edges',strDim1='COT_edges',&
+          data1D=options%sim_aux%POD_tau_bin_edges,dbg=options%dbg)
+
+     ! Making the last box also valid for all clouds greater than tau=5
+     options%sim_aux%POD_tau_bin_edges(SIZE(options%sim_aux%POD_tau_bin_edges))=9999._wp
+
+     CALL AUX_DATA(filename,'COT_centers',strDim1='COT_centers',&
+            data1D=options%sim_aux%POD_tau_bin_centers,nX=len,dbg=options%dbg)
+
+     ALLOCATE (options%sim_aux%POD_layers (ngrids,len,2))
+
+     ! Årstiden summer är här definierat som april till september
+     ! och vinter oktober till mars.
+
+     WRITE (*,'(5(A,x))') &
+            " --- Getting POD values based on",TRIM(season),"season for ",TRIM(options%CDR),"CDR"
+
+     ! NIGHT values
+     WRITE(varstr,'(A,A)') 'POD_NIGHT_',season
+     CALL AUX_DATA(filename,TRIM(varstr),'lon','lat',strDim3='COT_centers',&
+                    data3D=tmp3,conform2model=.TRUE.,aux=aux,dbg=options%dbg)
+
+     options%sim_aux%POD_layers(:,:,1) = RESHAPE(tmp3,(/ngrids,len/))
+
+     ! Day values
+     WRITE(varstr,'(A,A)') 'POD_DAY_',season
+     CALL AUX_DATA(filename,TRIM(varstr),'lon','lat',strDim3='COT_centers',&
+            data3D=tmp3,conform2model=.TRUE.,aux=aux,dbg=options%dbg)
+
+     options%sim_aux%POD_layers(:,:,2) = RESHAPE(tmp3,(/ngrids,len/))
+
+     DEALLOCATE(tmp3)
+
+     !---------------------------------------
+     ! FAR
+     !
+     ALLOCATE (options%sim_aux%FAR (ngrids,2))
+
+     ! Årstiden summer är här definierat som april till september
+     ! och vinter oktober till mars.
+
+     WRITE (*,'(5(A,x))') &
+            " --- Getting FAR values based on",TRIM(season),"season for ",TRIM(options%CDR),"CDR"
+
+     ! NIGHT values
+     WRITE(varstr,'(A,A)') 'false_alarm_rate_NIGHT_',season
+     CALL AUX_DATA(filename,TRIM(varstr),'lon','lat',&
+                    data2D=tmp2,conform2model=.TRUE.,aux=aux,dbg=options%dbg)
+
+     options%sim_aux%FAR(:,1) = RESHAPE(tmp2,(/ngrids/))
+
+     ! Daytime values
+     WRITE(varstr,'(A,A)') 'false_alarm_rate_DAY_',season
+     CALL AUX_DATA(filename,TRIM(varstr),'lon','lat',&
+            data2D=tmp2,conform2model=.TRUE.,aux=aux,dbg=options%dbg)
+
+     options%sim_aux%FAR(:,2) = RESHAPE(tmp2,(/ngrids/))
+
+     DEALLOCATE(tmp2)
+
+     !---------------------------------------
+     ! Random numbers
+     !
+     ALLOCATE (options%sim_aux%random_numbers(2,ngrids,ncol))
+     CALL RANDOM_NUMBER(harvest = options%sim_aux%random_numbers)
+
+END SUBROUTINE get_POD_FAR
+
 END MODULE claas_M
