@@ -5,3 +5,8 @@ src/.vscode/settings.json
 NAMELIST*
 CONFIG*
 gmt.history
+.vscode/settings.json
+.vscode/Launch.json
+launch_me2.sh
+launch_sbatch.sh
+makeNamelist.sh
