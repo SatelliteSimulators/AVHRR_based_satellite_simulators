@@ -26,7 +26,7 @@ CONTAINS
 
     IMPLICIT NONE
 
-    CHARACTER(*), INTENT(in)           :: formstr 
+    CHARACTER(*), INTENT(in)           :: formstr
     CHARACTER(*), INTENT(in), OPTIONAL :: dir,model,CDR
     CHARACTER(*), INTENT(in), OPTIONAL :: sat,version,dataset
     CHARACTER(*),INTENT(in),OPTIONAL   :: node, string
@@ -40,19 +40,20 @@ CONTAINS
     ! FILE NAME
     !
     ! wildcards (all optional):
-    ! #CDR='clara-a3, or clara-a2 or cloud_cci'                  
+    ! #CDR='clara-a3, or clara-a2 or cloud_cci'
     ! #DS='AVHRR'
-    ! #MODEL= options%model (A)   
-    ! #Y4 = year  (i4)            
-    ! #M2 = month (i2)            
-    ! #D2 = day   (i2)            
-    ! #Y2 = year  (i2)            
-    ! #M1 = month (i1)            
-    ! #D1 = day   (i1)            
-    ! #UTC= utc   (i2)            
-    ! #NODE = string              
-    ! #VERSION = string           
-    ! #STRING = string            
+    ! #MODEL= options%model (A)
+    ! #Y4 = year  (i4)
+    ! #M2 = month (i2)
+    ! #D2 = day   (i2)
+    ! #Y2 = year  (i2)
+    ! #M1 = month (i1)
+    ! #D1 = day   (i1)
+    ! #UTC= utc   (i2)
+    ! #SAT = satellite (A)
+    ! #NODE = string
+    ! #VERSION = string
+    ! #STRING = string
     !
     file=formstr
     IF (TALLY(file,'#CDR').GT.0) THEN
